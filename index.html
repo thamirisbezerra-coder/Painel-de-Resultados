@@ -1070,7 +1070,8 @@
          * Renderiza o gráfico de comparativo anual e as informações adicionais
          * MUDANÇA: Usa números fixos para 2023 e 2024
          * MUDANÇA: Usa números base para 2025 e soma/subtrai a sessão atual
-         * MUDANÇA: Exibe apenas pendentes da SESSÃO para 2025 no texto
+         * MUDANÇA: Exibe 6863 fixo para pendentes 2025 no texto
+         * MUDANÇA: Não incrementa mais totalSent de 2025 na sessão
          */
         function renderAnnualComparison() {
             // Clonar os valores base para não modificar o objeto original a cada renderização
@@ -1084,13 +1085,11 @@
                     noFeedback: 1166, totalSent: 10601 
                 },
                 '2025': { 
-                    approved: 1061, rejected: 1620, noFeedbackBase: 7094, // Base renomeada
+                    approved: 1061, rejected: 1620, noFeedbackBase: 7094, 
                     totalValidFeedback: 1061 + 1620, // Base
-                    totalSent: 12064, // Base Total Enviadas
-                    events: 803, // Base de eventos
-                    // Contadores apenas da sessão atual para exibição
-                    noFeedbackLive: 0,
-                    totalSentLiveIncrement: 0 // Para contar apenas novas amostras da sessão
+                    totalSent: 12064, // Base Total Enviadas FIXA
+                    events: 803, 
+                    noFeedbackLiveDisplay: 0 // Contador separado para exibição de pendentes da sessão
                 }
             };
 
@@ -1104,8 +1103,7 @@
                  // Só processa se for 2025
                 if (dataByYear.hasOwnProperty(year) && year === '2025') { 
                     
-                     // Incrementa o total enviado FINAL (Base + Live)
-                    dataByYear[year].totalSent++; 
+                    // REMOVIDO: dataByYear[year].totalSent++; 
 
                     const category = getAnnualChartCategory(sample.feedback); 
                     
@@ -1113,20 +1111,17 @@
                         case 'approved':
                             dataByYear[year].approved++;
                             dataByYear[year].totalValidFeedback++; 
-                            // Não subtrai mais do noFeedbackBase para o gráfico
                             break;
                         case 'rejected':
                             dataByYear[year].rejected++;
                             dataByYear[year].totalValidFeedback++; 
-                            // Não subtrai mais do noFeedbackBase para o gráfico
                             break;
                         case 'event':
-                             dataByYear[year].events++; // Incrementa eventos
-                             // Não subtrai mais do noFeedbackBase para o gráfico
+                             dataByYear[year].events++; 
                              break;
                         case 'pendingOrNoFeedback':
                             // Incrementa o contador SEPARADO para exibição
-                            dataByYear[year].noFeedbackLive++; 
+                            dataByYear[year].noFeedbackLiveDisplay++; 
                             break;
                         case 'ignored':
                              break; // Ignorados não afetam contagens
@@ -1141,14 +1136,13 @@
             }));
 
              // Zera contadores live antes de recontar
-             dataByYear['2025'].noFeedbackLive = 0;
-             // Reseta o totalSent para a base antes de recontar a sessão
-             dataByYear['2025'].totalSent = 12064;
-             // Zera contadores que são somados a partir da base
+             dataByYear['2025'].noFeedbackLiveDisplay = 0;
+             // Reseta contadores que são somados a partir da base
              dataByYear['2025'].approved = 1061;
              dataByYear['2025'].rejected = 1620;
-             dataByYear['2025'].events = 803; // Resetar eventos também
+             dataByYear['2025'].events = 803; 
              dataByYear['2025'].totalValidFeedback = 1061 + 1620;
+             // Total Sent de 2025 permanece fixo em 12064
 
             liveSamples.forEach(sample => {
                  processSampleForAnnualChart(sample, dataByYear); // Só afetará 2025
@@ -1233,8 +1227,8 @@
 
             // Atualizar informações de totais abaixo do gráfico
             annualTotalsInfo.innerHTML = labels.map(year => {
-                 // ** MUDANÇA: Exibe noFeedbackLive apenas para 2025 **
-                 const noFeedbackDisplay = year === '2025' ? dataByYear[year].noFeedbackLive : dataByYear[year].noFeedback;
+                 // ** MUDANÇA: Exibe 6863 fixo para pendentes 2025 **
+                 const noFeedbackDisplay = year === '2025' ? 6863 : dataByYear[year].noFeedback;
                  return `
                     <p class="text-center sm:text-left">
                         <strong>${year}:</strong> ${dataByYear[year].totalSent} enviadas | ${noFeedbackDisplay} sem feedback
@@ -1419,6 +1413,7 @@
     </script>
 </body>
 </html>
+
 
 
 
