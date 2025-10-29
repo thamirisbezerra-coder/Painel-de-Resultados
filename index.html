@@ -57,7 +57,6 @@
                     <h2 class="text-2xl font-bold text-gray-900">Comparativo Anual (Amostras Gerais)</h2>
                     <!-- Botão removido -->
                 </div>
-                <!-- Texto atualizado -->
                 <p class="text-sm text-gray-600 mb-4">Este gráfico utiliza os dados consolidados de 2023 e 2024, e calcula os dados de 2025 com base nos valores base informados + sessão ativa.</p>
                 
                 <!-- Input Histórico (Geral) REMOVIDO -->
@@ -1070,35 +1069,31 @@
         /**
          * Renderiza o gráfico de comparativo anual e as informações adicionais
          * MUDANÇA: Usa números fixos para 2023 e 2024
+         * MUDANÇA: Usa números base para 2025 e soma/subtrai a sessão atual
+         * MUDANÇA: Exibe apenas pendentes da SESSÃO para 2025 no texto
          */
         function renderAnnualComparison() {
-            const dataByYear = {
-                 // ** VALORES FIXOS 2023 **
-                '2023': { 
-                    approved: 2129, 
-                    rejected: 3726, 
-                    totalValidFeedback: 5855, // Soma Aprov+Reprov
-                    noFeedback: 3040, 
-                    totalSent: 5855 + 3040 // Soma Aprov+Reprov+Pendentes
+            // Clonar os valores base para não modificar o objeto original a cada renderização
+             const dataByYear = {
+                 '2023': { 
+                    approved: 2129, rejected: 3726, totalValidFeedback: 5855, 
+                    noFeedback: 3040, totalSent: 8895 
                 },
-                 // ** VALORES FIXOS 2024 **
                 '2024': { 
-                    approved: 3011, 
-                    rejected: 6424, 
-                    totalValidFeedback: 9435, // Soma Aprov+Reprov
-                    noFeedback: 1166, 
-                    totalSent: 9435 + 1166 // Soma Aprov+Reprov+Pendentes
+                    approved: 3011, rejected: 6424, totalValidFeedback: 9435, 
+                    noFeedback: 1166, totalSent: 10601 
                 },
-                // ** VALORES BASE 2025 (serão incrementados) **
                 '2025': { 
-                    approved: 1061, 
-                    rejected: 1614, 
-                    noFeedback: 8542, 
-                    // totalValidFeedback e totalSent serão calculados abaixo
-                    totalValidFeedback: 1061 + 1614, 
-                    totalSent: 1061 + 1614 + 8542 
+                    approved: 1061, rejected: 1620, noFeedbackBase: 7094, // Base renomeada
+                    totalValidFeedback: 1061 + 1620, // Base
+                    totalSent: 12064, // Base Total Enviadas
+                    events: 803, // Base de eventos
+                    // Contadores apenas da sessão atual para exibição
+                    noFeedbackLive: 0,
+                    totalSentLiveIncrement: 0 // Para contar apenas novas amostras da sessão
                 }
             };
+
 
             // Função auxiliar para processar cada amostra da SESSÃO ATIVA (apenas para 2025)
             function processSampleForAnnualChart(sample, dataByYear) {
@@ -1109,26 +1104,32 @@
                  // Só processa se for 2025
                 if (dataByYear.hasOwnProperty(year) && year === '2025') { 
                     
-                    dataByYear[year].totalSent++; // Incrementa total enviado para o ano
+                     // Incrementa o total enviado FINAL (Base + Live)
+                    dataByYear[year].totalSent++; 
 
                     const category = getAnnualChartCategory(sample.feedback); 
                     
                     switch(category) {
                         case 'approved':
                             dataByYear[year].approved++;
-                            dataByYear[year].totalValidFeedback++; // Conta como feedback válido
+                            dataByYear[year].totalValidFeedback++; 
+                            // Não subtrai mais do noFeedbackBase para o gráfico
                             break;
                         case 'rejected':
                             dataByYear[year].rejected++;
-                            dataByYear[year].totalValidFeedback++; // Conta como feedback válido
+                            dataByYear[year].totalValidFeedback++; 
+                            // Não subtrai mais do noFeedbackBase para o gráfico
                             break;
-                        case 'pendingOrNoFeedback':
-                            dataByYear[year].noFeedback++;
-                            // Não incrementa totalValidFeedback
-                            break;
-                        case 'event': // Eventos são contados como enviados mas não afetam índices
-                        case 'ignored': // Ignorados são contados como enviados mas não afetam índices
+                        case 'event':
+                             dataByYear[year].events++; // Incrementa eventos
+                             // Não subtrai mais do noFeedbackBase para o gráfico
                              break;
+                        case 'pendingOrNoFeedback':
+                            // Incrementa o contador SEPARADO para exibição
+                            dataByYear[year].noFeedbackLive++; 
+                            break;
+                        case 'ignored':
+                             break; // Ignorados não afetam contagens
                     }
                 }
             }
@@ -1139,6 +1140,16 @@
                  emissaoNF: s.emissaoNF 
             }));
 
+             // Zera contadores live antes de recontar
+             dataByYear['2025'].noFeedbackLive = 0;
+             // Reseta o totalSent para a base antes de recontar a sessão
+             dataByYear['2025'].totalSent = 12064;
+             // Zera contadores que são somados a partir da base
+             dataByYear['2025'].approved = 1061;
+             dataByYear['2025'].rejected = 1620;
+             dataByYear['2025'].events = 803; // Resetar eventos também
+             dataByYear['2025'].totalValidFeedback = 1061 + 1620;
+
             liveSamples.forEach(sample => {
                  processSampleForAnnualChart(sample, dataByYear); // Só afetará 2025
             });
@@ -1146,10 +1157,12 @@
             // Calcular Índices (agora 2023 e 2024 são baseados nos valores fixos)
             const labels = ['2023', '2024', '2025'];
             const approvalRates = labels.map(year => {
+                // Usa totalValidFeedback (Base + Live Aprov/Reprov)
                 const totalValid = dataByYear[year].totalValidFeedback; 
                 return totalValid > 0 ? (dataByYear[year].approved / totalValid) * 100 : 0;
             });
             const rejectionRates = labels.map(year => {
+                 // Usa totalValidFeedback (Base + Live Aprov/Reprov)
                 const totalValid = dataByYear[year].totalValidFeedback;
                 return totalValid > 0 ? (dataByYear[year].rejected / totalValid) * 100 : 0;
             });
@@ -1218,12 +1231,16 @@
                 }
             });
 
-            // Atualizar informações de totais abaixo do gráfico (agora usa valores fixos para 23/24)
-            annualTotalsInfo.innerHTML = labels.map(year => `
-                <p class="text-center sm:text-left">
-                    <strong>${year}:</strong> ${dataByYear[year].totalSent} enviadas | ${dataByYear[year].noFeedback} sem feedback
-                </p>
-            `).join('');
+            // Atualizar informações de totais abaixo do gráfico
+            annualTotalsInfo.innerHTML = labels.map(year => {
+                 // ** MUDANÇA: Exibe noFeedbackLive apenas para 2025 **
+                 const noFeedbackDisplay = year === '2025' ? dataByYear[year].noFeedbackLive : dataByYear[year].noFeedback;
+                 return `
+                    <p class="text-center sm:text-left">
+                        <strong>${year}:</strong> ${dataByYear[year].totalSent} enviadas | ${noFeedbackDisplay} sem feedback
+                    </p>
+                `;
+            }).join('');
         }
 
 
@@ -1385,7 +1402,6 @@
                  if (!historicalDataFetched) {
                      await fetchDarAromaData();
                      // REMOVIDO: Não carrega mais o GERAL aqui, pois 23/24 são fixos
-                     // await fetchGeneralHistoricalData();
                  }
                  // DEPOIS verifica a sessão ativa
                  await listenForActiveSession(); // Changed to await
@@ -1396,7 +1412,6 @@
                  if (!historicalDataFetched) {
                      await fetchDarAromaData();
                     // REMOVIDO
-                    // await fetchGeneralHistoricalData();
                  }
                  resetToInitialState(true); // Show connection options on auth error
              }
@@ -1404,6 +1419,8 @@
     </script>
 </body>
 </html>
+
+
 
 
 
