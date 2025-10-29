@@ -1077,12 +1077,12 @@
             // Clonar os valores base para não modificar o objeto original a cada renderização
              const dataByYear = {
                  '2023': { 
-                    approved: 2129, rejected: 3726, totalValidFeedback: 5855, 
-                    noFeedback: 3040, totalSent: 8895 
+                    approved: 1467, rejected: 3846, totalValidFeedback: 5313, // 1467 + 3846
+                    noFeedback: 3760, totalSent: 9952 // 5313 + 3760 + 879 (eventos)
                 },
                 '2024': { 
-                    approved: 3011, rejected: 6424, totalValidFeedback: 9435, 
-                    noFeedback: 1166, totalSent: 10601 
+                    approved: 3011, rejected: 6603, totalValidFeedback: 9614, // 3011 + 6603
+                    noFeedback: 1205, totalSent: 13010 // 9614 + 1205 + 2191 (eventos)
                 },
                 '2025': { 
                     approved: 1061, rejected: 1620, noFeedbackBase: 7094, 
@@ -1103,7 +1103,8 @@
                  // Só processa se for 2025
                 if (dataByYear.hasOwnProperty(year) && year === '2025') { 
                     
-                    // REMOVIDO: dataByYear[year].totalSent++; 
+                    // REMOVIDO: Não incrementa mais o totalSent base
+                    // dataByYear[year].totalSent++; 
 
                     const category = getAnnualChartCategory(sample.feedback); 
                     
@@ -1227,8 +1228,8 @@
 
             // Atualizar informações de totais abaixo do gráfico
             annualTotalsInfo.innerHTML = labels.map(year => {
-                 // ** MUDANÇA: Exibe 6863 fixo para pendentes 2025 **
-                 const noFeedbackDisplay = year === '2025' ? 6863 : dataByYear[year].noFeedback;
+                 // ** MUDANÇA: Exibe noFeedbackLiveDisplay apenas para 2025 **
+                 const noFeedbackDisplay = year === '2025' ? dataByYear[year].noFeedbackLiveDisplay : dataByYear[year].noFeedback;
                  return `
                     <p class="text-center sm:text-left">
                         <strong>${year}:</strong> ${dataByYear[year].totalSent} enviadas | ${noFeedbackDisplay} sem feedback
@@ -1413,7 +1414,6 @@
     </script>
 </body>
 </html>
-
 
 
 
