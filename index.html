@@ -55,18 +55,13 @@
             <section id="annual-comparison-section" class="mb-8 bg-white p-6 rounded-2xl shadow-sm border">
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4">
                     <h2 class="text-2xl font-bold text-gray-900">Comparativo Anual (Amostras Gerais)</h2>
-                    <button id="toggle-general-data-btn" class="bg-gray-200 text-gray-700 text-sm font-semibold py-1 px-3 rounded-lg hover:bg-gray-300">Adicionar Dados Gerais (Anual)</button>
+                    <!-- Botão removido -->
                 </div>
-                <!-- Texto atualizado para refletir a mudança (sem real-time) -->
-                <p class="text-sm text-gray-600 mb-4">Este gráfico é baseado nos dados anuais gerais e nos dados da sessão ativa no momento da conexão.</p>
+                <!-- Texto atualizado -->
+                <p class="text-sm text-gray-600 mb-4">Este gráfico utiliza os dados consolidados de 2023 e 2024, e calcula os dados de 2025 com base nos valores base informados + sessão ativa.</p>
                 
-                <!-- Input Histórico (Geral) (Oculto) -->
-                <div id="general-data-input-section" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
-                     <h4 class="font-semibold mb-2">Adicionar Dados Gerais (para o gráfico anual)</h4>
-                     <p class="text-sm text-gray-600 mb-2">Cole os dados da(s) sua(s) planilha(s) anual(is) (2023, 2024, 2025) aqui. Pode colar um ano de cada vez ou todos juntos.</p>
-                     <textarea id="general-data-input" rows="5" class="w-full border-gray-300 rounded-lg" placeholder="Cole os dados (Pedido, Vendedor(a), Produto, Descrição, Feedback, Emissão NF, etc...)"></textarea>
-                     <button id="add-general-data-btn" class="mt-3 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700">Adicionar Dados ao Gráfico</button>
-                </div>
+                <!-- Input Histórico (Geral) REMOVIDO -->
+
 
                 <!-- Contêiner do Gráfico e Informações Adicionais -->
                 <div>
@@ -78,10 +73,10 @@
                         <p class="mb-2"><strong>Critérios do Gráfico:</strong></p>
                         <ul class="list-disc list-inside mb-3 space-y-1">
                             <li><strong class="text-green-600">Aprovados:</strong> Considera feedbacks "COM PEDIDO" e "APROVADO SEM PEDIDO".</li>
-                            <li><strong class="text-red-600">Reprovados:</strong> Considera feedbacks "FORA DO PERFIL DO CLIENTE", "SEM RETORNO DO CLIENTE", "REPRESENTACAO / DISTRIBUIDOR", "FORA DA ESPECIFICACAO DO CLIENTE", "PRODUTO DESCONTINUADO", "APRESENTACAO PRO ATIVA", "QUANTIDADE INSUFICIENTE", "EXTRAVIADA".</li>
+                            <li><strong class="text-red-600">Reprovados:</strong> Considera feedbacks "FORA DO PERFIL DO CLIENTE", "SEM RETORNO DO CLIENTE", "REPRESENTACAO / DISTRIBUIDOR", "FORA DA ESPECIFICACAO DO CLIENTE", "PRODUTO DESCONTINUADO", "APRESENTACAO PRO ATIVA", "QUANTIDADE INSUFICIENTE", "QUANTIDADE INSULFICIENTE", "EXTRAVIADA".</li> <!-- Mantém INSULFICIENTE -->
                              <li><strong>Não incluídos no índice:</strong> Eventos ('EVENTO'), Pendentes ('EM ANÁLISE', 'AMOSTRA NÃO TESTADA', 'AMOSTRA SEM FEEDBACK') ou amostras sem feedback definido.</li>
                         </ul>
-                        <p class="mb-2"><strong>Totais por Ano (considerados no gráfico):</strong></p>
+                        <p class="mb-2"><strong>Totais por Ano:</strong></p>
                         <div id="annual-totals-info" class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                              <!-- Totais preenchidos por JS -->
                              <p class="text-center sm:text-left"><strong>2023:</strong> Calculando...</p>
@@ -307,8 +302,14 @@
 
         // --- Constantes para o Gráfico Anual ---
         const CANONICAL_APPROVED_ANNUAL = [FEEDBACK_COM_PEDIDO, FEEDBACK_SEM_PEDIDO];
-        // Lista EXATA de Reprovados definida pelo usuário
-        const CANONICAL_REJECTED_ANNUAL = ['FORA DO PERFIL DO CLIENTE', 'SEM RETORNO DO CLIENTE', 'REPRESENTACAO / DISTRIBUIDOR', 'FORA DA ESPECIFICACAO DO CLIENTE', 'PRODUTO DESCONTINUADO', 'APRESENTACAO PRO ATIVA', 'QUANTIDADE INSUFICIENTE', 'EXTRAVIADA'].map(normalizeText); // Normaliza a lista
+        // Lista EXATA de Reprovados definida pelo usuário (com a variação INSULFICIENTE)
+        const CANONICAL_REJECTED_ANNUAL = [
+            'FORA DO PERFIL DO CLIENTE', 'SEM RETORNO DO CLIENTE', 'REPRESENTACAO / DISTRIBUIDOR',
+            'FORA DA ESPECIFICACAO DO CLIENTE', 'PRODUTO DESCONTINUADO', 'APRESENTACAO PRO ATIVA',
+            'QUANTIDADE INSUFICIENTE', // Original com C
+            'QUANTIDADE INSULFICIENTE', // Variação com L
+            'EXTRAVIADA'
+        ].map(normalizeText); // Normaliza a lista
         // Lista EXATA de Pendentes/Sem Feedback definida pelo usuário
         const CANONICAL_PENDING_NOFEEDBACK_ANNUAL = ['EM ANÁLISE', 'AMOSTRA NÃO TESTADA', 'AMOSTRA SEM FEEDBACK', ''].map(normalizeText); // Normaliza a lista (inclui vazio)
         const CANONICAL_EVENT_ANNUAL = ['EVENTO'].map(normalizeText); // Normaliza a lista
@@ -361,23 +362,19 @@
         
         // --- DOM Elements (Comparativo Anual) ---
         const annualComparisonChartCanvas = document.getElementById('annual-comparison-chart');
-        const toggleGeneralDataBtn = document.getElementById('toggle-general-data-btn');
-        const generalDataInputSection = document.getElementById('general-data-input-section');
-        const generalDataInput = document.getElementById('general-data-input');
-        const addGeneralDataBtn = document.getElementById('add-general-data-btn');
         const annualTotalsInfo = document.getElementById('annual-totals-info'); // Novo elemento
 
 
         // --- State Variables ---
-        // Removido: let dataListenerUnsubscribe = null;
         let currentSessionId = null;
         let allCurrentSamples = []; // Dados da sessão ativa (lidos uma vez)
         let sellerSegmentsCache = {}; // Cache for seller segments { sellerName: segment }
-        let historicalAromaData = []; // Cache para dados históricos (DAR)
-        let generalHistoricalData = []; // Cache para dados históricos (Geral)
+        let historicalAromaData = []; // Cache para dados históricos (DAR) - carregado uma vez
+        // let generalHistoricalData = []; // REMOVIDO - Não é mais necessário buscar
         let fullAromaSellerRanking = {}; 
         let lastFilteredAromaData = []; // Cache for last filtered data
         let annualChartInstance = null; // Instância do gráfico anual
+        let historicalDataFetched = false; // Flag para controlar carregamento único do histórico DAR
 
 
         // Standardize feedback text (usado principalmente para Ranking DAR)
@@ -406,12 +403,6 @@
              if (CANONICAL_PENDING_NOFEEDBACK_ANNUAL.includes(normalized)) return 'pendingOrNoFeedback'; // Checa lista específica normalizada
              if (CANONICAL_EVENT_ANNUAL.includes(normalized)) return 'event'; // Checa lista específica normalizada
              
-             // Se não for nenhum dos anteriores, mas tem feedback, ainda contamos como 'outros' reprovados?
-             // DECISÃO: Por enquanto, vamos seguir a regra do usuário: só os listados são reprovados.
-             // Qualquer outro feedback não listado será ignorado pelo gráfico anual.
-             // Se precisar mudar, descomente a linha abaixo para tratar outros como reprovados.
-             // if (canonical) return 'rejected'; // Trata qualquer outro feedback não classificado como rejeitado
-
              return 'ignored'; // Ignora se não se encaixar em nenhuma categoria definida
         }
 
@@ -447,6 +438,7 @@
 
         // --- Main Dashboard Rendering Function ---
         function processAndDisplayDashboard(samples, sessionId) {
+            console.log("Processing and displaying dashboard..."); // Log adicionado
             dashboard.classList.remove('hidden');
             connectionSection.classList.add('hidden');
             sessionIdText.innerHTML = `ID da Sessão: <strong>${sessionId}</strong>`;
@@ -467,8 +459,11 @@
                  connectionSection.classList.add('hidden');
 
                  try {
+                     // Check minimal existence using limit(1)
+                     console.log(`Checking existence of session ${manualId}...`); // Log
                      const sessionCheckRef = collection(db, "sessoes", manualId, "vendedores");
-                     const sessionCheckSnap = await getDocs(query(sessionCheckRef, limit(1)));
+                     const sessionCheckSnap = await getDocs(query(sessionCheckRef, limit(1))); // LIMIT 1 ADDED
+                     console.log(`Session check result: empty=${sessionCheckSnap.empty}`); // Log
 
                      if(sessionCheckSnap.empty) {
                          infoMessage.textContent = `Sessão ${manualId} não encontrada ou vazia.`;
@@ -477,6 +472,7 @@
                            return; // Stop connection attempt
                      }
 
+                     console.log(`Setting session ${manualId} as active...`); // Log
                      const activeSessionRef = doc(db, "configuracoes", "sessaoAtiva");
                      await setDoc(activeSessionRef, { current: manualId });
                      console.log(`Sessão ${manualId} definida como ativa globalmente.`);
@@ -529,20 +525,7 @@
              }
         });
 
-        // Listeners para Histórico (Geral)
-        toggleGeneralDataBtn.addEventListener('click', () => {
-             generalDataInputSection.classList.toggle('hidden');
-        });
-
-        addGeneralDataBtn.addEventListener('click', () => {
-             const data = generalDataInput.value.trim();
-             if (data) {
-                 parseAndSaveGeneralAnnualData(data); // Nova função
-             } else {
-                 infoMessage.textContent = "Por favor, cole os dados anuais gerais.";
-                 setTimeout(() => infoMessage.textContent = '', 3000);
-             }
-        });
+        // Listeners para Histórico (Geral) REMOVIDOS
         
         // --- Aroma Modal Listeners ---
         closeAromaSellerRankingModal.addEventListener('click', () => aromaSellerRankingModal.classList.add('hidden'));
@@ -557,164 +540,116 @@
          * Salva dados históricos (Ranking DAR)
          */
         async function parseAndSaveDarAromaData(data) {
+            console.log("Starting DAR historical data save..."); // Log adicionado
             infoMessage.textContent = "A processar dados históricos (DAR)...";
             addHistoricalDataBtn.disabled = true;
 
-            Papa.parse(data, {
-                header: true,
-                skipEmptyLines: true,
-                transformHeader: h => h.trim(),
-                complete: async (results) => {
-                    if (results.errors.length > 0) {
-                        infoMessage.textContent = `Erro de formatação: ${results.errors[0].message}`;
-                        addHistoricalDataBtn.disabled = false;
-                        return;
-                    }
+            try { // Adicionado try para pegar erro do PapaParse
+                Papa.parse(data, {
+                    header: true,
+                    skipEmptyLines: true,
+                    transformHeader: h => h.trim(),
+                    complete: async (results) => {
+                        if (results.errors.length > 0) {
+                             // Log detalhado do erro do PapaParse
+                            console.error("PapaParse DAR Error:", results.errors);
+                            infoMessage.textContent = `Erro formatação (DAR): ${results.errors[0].message}. Verifique linha ${results.errors[0].row}.`; // Mostra a linha
+                            addHistoricalDataBtn.disabled = false;
+                            return;
+                        }
 
-                    const mappedData = results.data.map((row, index) => {
-                        const sellerName = row['Vendedor(a)'];
-                        const produto = row['Produto'];
-                        const feedback = row['Feedback'] || row['Feedback Final'] || ''; 
-                        const emissaoNF = row['Emissão NF'] || '';
+                        const mappedData = results.data.map((row, index) => {
+                            const sellerName = row['Vendedor(a)'];
+                            const produto = row['Produto'];
+                            const feedback = row['Feedback'] || row['Feedback Final'] || ''; 
+                            const emissaoNF = row['Emissão NF'] || '';
 
-                        if (!sellerName || !produto || !feedback) return null; // Basic validation
+                            if (!sellerName || !produto || !feedback) return null; // Basic validation
 
-                        return {
-                            id: `hist_dar_${Date.now()}_${index}`, // Unique ID
-                            sellerName: String(sellerName),
-                            produto: String(produto),
-                            descricao: String(row['Descrição'] || ''),
-                            feedback: String(feedback),
-                            emissaoNF: String(emissaoNF),
-                            pedido: String(row['Pedido'] || ''),
-                            razaoSocial: String(row['Razão Social'] || ''),
-                            notaFiscal: String(row['Nota Fiscal'] || '')
-                        };
-                    }).filter(Boolean);
+                            return {
+                                id: `hist_dar_${Date.now()}_${index}`, // Unique ID
+                                sellerName: String(sellerName),
+                                produto: String(produto),
+                                descricao: String(row['Descrição'] || ''),
+                                feedback: String(feedback),
+                                emissaoNF: String(emissaoNF),
+                                pedido: String(row['Pedido'] || ''),
+                                razaoSocial: String(row['Razão Social'] || ''),
+                                notaFiscal: String(row['Nota Fiscal'] || '')
+                            };
+                        }).filter(Boolean);
 
-                    if (mappedData.length === 0) {
-                        infoMessage.textContent = "Nenhum dado histórico (DAR) válido encontrado.";
-                        addHistoricalDataBtn.disabled = false;
-                        return;
-                    }
-                    
-                    // Batch writing em chunks
-                    const collectionRef = collection(db, "dadosHistoricosAromas");
-                    const batchSize = 400; 
-                    
-                    try {
-                        for (let i = 0; i < mappedData.length; i += batchSize) {
-                            const batch = writeBatch(db);
-                            const chunk = mappedData.slice(i, i + batchSize);
-                            
-                            chunk.forEach(item => {
-                                const docRef = doc(collectionRef, item.id);
-                                batch.set(docRef, item);
-                            });
-                            
-                            await batch.commit(); 
-                            infoMessage.textContent = `A processar... ${i + chunk.length} de ${mappedData.length} registros salvos.`;
+                        if (mappedData.length === 0) {
+                            infoMessage.textContent = "Nenhum dado histórico (DAR) válido encontrado.";
+                            addHistoricalDataBtn.disabled = false;
+                            return;
                         }
                         
-                        infoMessage.textContent = `${mappedData.length} registros históricos (DAR) salvos com sucesso!`;
-                        historicalDataInput.value = ''; 
-                        historicalDataInputSection.classList.add('hidden'); 
-                        toggleHistoricalDataBtn.classList.add('hidden'); 
+                        // Batch writing em chunks
+                        const collectionRef = collection(db, "dadosHistoricosAromas");
+                        const batchSize = 400; 
                         
-                        await fetchDarAromaData(); 
-                        
-                    } catch (error) {
-                         console.error("Erro ao salvar dados históricos no Firestore:", error);
-                         infoMessage.textContent = "Erro ao salvar dados históricos (DAR).";
-                    } finally {
-                         addHistoricalDataBtn.disabled = false;
+                        try {
+                            console.log(`Starting DAR batch write (${mappedData.length} items)...`); // Log adicionado
+                            for (let i = 0; i < mappedData.length; i += batchSize) {
+                                const batch = writeBatch(db);
+                                const chunk = mappedData.slice(i, i + batchSize);
+                                
+                                chunk.forEach(item => {
+                                    const docRef = doc(collectionRef, item.id);
+                                    batch.set(docRef, item);
+                                });
+                                
+                                console.log(`Committing DAR batch ${Math.floor(i / batchSize) + 1}...`); // Log adicionado
+                                await batch.commit(); 
+                                infoMessage.textContent = `A processar... ${i + chunk.length} de ${mappedData.length} registros salvos.`;
+                                await new Promise(resolve => setTimeout(resolve, 50)); // Adiciona pausa
+                            }
+                            
+                            console.log("DAR batch write finished."); // Log adicionado
+                            infoMessage.textContent = `${mappedData.length} registros históricos (DAR) salvos com sucesso!`;
+                            historicalDataInput.value = ''; 
+                            historicalDataInputSection.classList.add('hidden'); 
+                            toggleHistoricalDataBtn.classList.add('hidden'); 
+                            
+                            await fetchDarAromaData(); // Atualiza cache local
+                            renderAromaRankings(); // Re-renderiza ranking
+                            
+                        } catch (error) {
+                             console.error("Erro ao salvar dados históricos no Firestore:", error);
+                             infoMessage.textContent = "Erro ao salvar dados históricos (DAR).";
+                        } finally {
+                             addHistoricalDataBtn.disabled = false;
+                        }
                     }
-                }
-            });
+                });
+            } catch (parseError) { // Pega erro síncrono do PapaParse
+                 console.error("PapaParse DAR Sync Error:", parseError);
+                 infoMessage.textContent = `Erro Crítico ao ler dados (DAR): ${parseError.message}`;
+                 addHistoricalDataBtn.disabled = false;
+            }
         }
 
         /**
-         * Salva dados históricos (Geral Anual)
+         * Salva dados históricos (Geral Anual) - REMOVIDO pois dados 23/24 são fixos
          */
-        async function parseAndSaveGeneralAnnualData(data) {
-            infoMessage.textContent = "A processar dados gerais anuais...";
-            addGeneralDataBtn.disabled = true;
+        // async function parseAndSaveGeneralAnnualData(data) { ... }
 
-            Papa.parse(data, {
-                header: true,
-                skipEmptyLines: true,
-                transformHeader: h => h.trim(),
-                complete: async (results) => {
-                    if (results.errors.length > 0) {
-                        infoMessage.textContent = `Erro de formatação: ${results.errors[0].message}`;
-                        addGeneralDataBtn.disabled = false;
-                        return;
-                    }
-
-                    const mappedData = results.data.map((row, index) => {
-                        const feedback = row['Feedback'] || row['Feedback Final'] || ''; 
-                        const emissaoNF = row['Emissão NF'] || '';
-
-                        // Requer apenas feedback e data para o gráfico anual
-                        if (!emissaoNF) return null; // Precisa da data para saber o ano
-
-                        return {
-                            id: `geral_${Date.now()}_${index}`, // Unique ID
-                            feedback: String(feedback), // Guarda o feedback (pode ser vazio)
-                            emissaoNF: String(emissaoNF)
-                        };
-                    }).filter(Boolean);
-
-                    if (mappedData.length === 0) {
-                        infoMessage.textContent = "Nenhum dado geral válido (com Emissão NF) encontrado.";
-                        addGeneralDataBtn.disabled = false;
-                        return;
-                    }
-                    
-                    // Batch writing em chunks
-                    const collectionRef = collection(db, "dadosHistoricosGeral");
-                    const batchSize = 400; 
-
-                    try {
-                        for (let i = 0; i < mappedData.length; i += batchSize) {
-                            const batch = writeBatch(db);
-                            const chunk = mappedData.slice(i, i + batchSize);
-                            
-                            chunk.forEach(item => {
-                                const docRef = doc(collectionRef, item.id);
-                                batch.set(docRef, item);
-                            });
-                            
-                            await batch.commit(); 
-                            infoMessage.textContent = `A processar... ${i + chunk.length} de ${mappedData.length} registros salvos.`;
-                        }
-                        
-                        infoMessage.textContent = `${mappedData.length} registros gerais salvos com sucesso!`;
-                        generalDataInput.value = ''; 
-                        generalDataInputSection.classList.add('hidden'); 
-                        toggleGeneralDataBtn.classList.add('hidden'); 
-                        
-                        await fetchGeneralHistoricalData(); 
-                        
-                    } catch (error) {
-                         console.error("Erro ao salvar dados gerais no Firestore:", error);
-                         infoMessage.textContent = "Erro ao salvar dados gerais.";
-                    } finally {
-                         addGeneralDataBtn.disabled = false;
-                    }
-                }
-            });
-        }
 
         /**
          * Busca os dados da sessão ativa (live) UMA VEZ.
+         * MUDANÇA: Não busca mais histórico aqui.
          */
         async function listenForDataUpdates(sessionId) {
+            console.log(`Fetching live data for session: ${sessionId}...`); // Log adicionado
             currentSessionId = sessionId;
             const q = collection(db, "sessoes", sessionId, "vendedores");
 
             try {
+                console.time("fetchLiveSamples"); // Start timer
                 const snapshot = await getDocs(q);
+                console.timeEnd("fetchLiveSamples"); // End timer
+                console.log(`Read ${snapshot.size} documents for live samples.`); // Log document count
 
                 if (snapshot.empty) {
                     console.warn(`Sessão ${sessionId} não encontrada ou vazia.`);
@@ -727,18 +662,18 @@
 
                 const allSamples = snapshot.docs.flatMap(doc => doc.data().amostras || []);
                 allCurrentSamples = allSamples; 
+                console.log(`Processed ${allCurrentSamples.length} live samples.`); // Log adicionado
 
                 connectionSection.classList.add('hidden');
                 dashboard.classList.remove('hidden');
 
                 const sellerNames = [...new Set(allSamples.map(s => s.sellerName))];
                 if (sellerNames.length > 0) {
+                     await new Promise(resolve => setTimeout(resolve, 50)); // Pausa antes dos segmentos
                     await loadAllSellerSegments(sellerNames);
                 }
-
-                await fetchDarAromaData(); 
-                await fetchGeneralHistoricalData(); 
-
+                
+                // MUDANÇA: Chama processAndDisplayDashboard AGORA, usando histórico já carregado
                 processAndDisplayDashboard(allSamples, sessionId); 
                 infoMessage.textContent = ''; 
 
@@ -752,59 +687,46 @@
         }
         
         /**
-         * Busca os dados históricos (Ranking DAR)
+         * Busca os dados históricos (Ranking DAR) - SÓ UMA VEZ no INÍCIO
          */
         async function fetchDarAromaData() {
+             // MUDANÇA: Verifica se já carregou
+             if (historicalDataFetched) {
+                 console.log("DAR historical data already fetched.");
+                 return;
+             }
+             console.log("Fetching DAR historical data for the first time..."); // Log adicionado
             try {
                 const q = collection(db, "dadosHistoricosAromas");
+                console.time("fetchDarHistorical"); // Start timer
                 const snapshot = await getDocs(q); 
+                console.timeEnd("fetchDarHistorical"); // End timer
+                console.log(`Read ${snapshot.size} documents for DAR historical data.`); // Log document count
                 
                 historicalAromaData = snapshot.docs.map(doc => doc.data());
-                console.log(`Carregados ${historicalAromaData.length} registros históricos (DAR).`);
+                console.log(`Processed ${historicalAromaData.length} DAR historical records.`);
+                historicalDataFetched = true; // Marca como carregado
                 
-                if (!dashboard.classList.contains('hidden')) {
-                    renderAromaRankings();
-                }
             } catch (error) {
                  console.error("Erro ao carregar dados históricos (DAR):", error);
                  historicalAromaData = []; 
-                 if (!dashboard.classList.contains('hidden')) {
-                     renderAromaRankings(); 
-                 }
+                 historicalDataFetched = true; // Marca como 'tentou carregar' mesmo em caso de erro
             }
         }
 
         /**
-         * Busca os dados históricos (Geral Anual)
+         * Busca os dados históricos (Geral Anual) - REMOVIDO
          */
-        async function fetchGeneralHistoricalData() {
-            try {
-                const q = collection(db, "dadosHistoricosGeral");
-                const snapshot = await getDocs(q); 
-                
-                generalHistoricalData = snapshot.docs.map(doc => doc.data());
-                console.log(`Carregados ${generalHistoricalData.length} registros históricos (Geral).`);
-                
-                if (!dashboard.classList.contains('hidden')) {
-                    renderAnnualComparison();
-                }
-            } catch (error) {
-                 console.error("Erro ao carregar dados históricos (Geral):", error);
-                 generalHistoricalData = []; 
-                 if (!dashboard.classList.contains('hidden')) {
-                     renderAnnualComparison(); 
-                 }
-            }
-        }
+        // async function fetchGeneralHistoricalData() { ... }
 
 
         // Reset UI state
         function resetToInitialState(keepConnectionOptions = false) {
+            console.log("Resetting UI to initial state..."); // Log adicionado
             currentSessionId = null;
             allCurrentSamples = [];
             sellerSegmentsCache = {};
-            historicalAromaData = []; 
-            generalHistoricalData = []; 
+            // MUDANÇA: Não limpa mais os dados históricos no reset
 
             dashboard.classList.add('hidden');
             sessionIdText.textContent = 'Nenhuma sessão iniciada';
@@ -813,12 +735,12 @@
             toggleAromaSectionBtn.querySelector('svg').classList.remove('rotate-180');
             historicalDataInputSection.classList.add('hidden');
             historicalDataInput.value = '';
-            generalDataInputSection.classList.add('hidden');
-            generalDataInput.value = '';
+            // generalDataInputSection REMOVIDO
+            // generalDataInput.value REMOVIDO
 
             // Resetar visibilidade dos botões de adicionar histórico
             toggleHistoricalDataBtn.classList.remove('hidden');
-            toggleGeneralDataBtn.classList.remove('hidden');
+            // toggleGeneralDataBtn REMOVIDO
 
 
             if (keepConnectionOptions) {
@@ -827,7 +749,6 @@
                      infoMessage.textContent = 'Nenhuma sessão ativa globalmente. Conecte-se manualmente.';
                 }
             } else {
-                // Normalmente não deveria chegar aqui neste fluxo simplificado
                 connectionSection.classList.remove('hidden');
                 infoMessage.textContent = 'Conectado. Nenhuma sessão ativa globalmente. Conecte-se manualmente.';
                 manualSessionInput.value = ''; 
@@ -836,10 +757,14 @@
 
         // Verifica a sessão ativa UMA VEZ ao carregar
         async function listenForActiveSession() {
+            console.log("Checking for active global session..."); // Log adicionado
             const activeSessionRef = doc(db, "configuracoes", "sessaoAtiva");
             
             try {
+                console.time("fetchActiveSession"); // Start timer
                 const docSnap = await getDoc(activeSessionRef); 
+                console.timeEnd("fetchActiveSession"); // End timer
+                 console.log(`Read 1 document for active session check.`); // Log document count
                 const activeSessionId = docSnap.exists() ? docSnap.data().current : null;
 
                 if (activeSessionId) {
@@ -849,53 +774,94 @@
                     listenForDataUpdates(activeSessionId); 
                 } else {
                     console.log("Nenhuma sessão global ou local ativa. A mostrar opções de ligação.");
+                    // MUDANÇA: Histórico já carregado no Initial Setup
                     resetToInitialState(true);
+                    // MUDANÇA: Renderiza gráficos mesmo sem sessão ativa, usando apenas histórico
+                    if (!dashboard.classList.contains('hidden')) {
+                        renderAromaRankings();
+                        renderAnnualComparison();
+                    } else { // Se dashboard oculto, força renderização inicial
+                         dashboard.classList.remove('hidden'); // Mostra dashboard
+                         connectionSection.classList.remove('hidden'); // Mantém conexão visível
+                         renderAromaRankings();
+                         renderAnnualComparison();
+                         infoMessage.textContent = 'Nenhuma sessão ativa. Exibindo apenas dados históricos.';
+                    }
                 }
             } catch (error) {
                 infoMessage.textContent = "Erro ao verificar sessão ativa global.";
                 console.error("Active session check error:", error);
+                 // MUDANÇA: Histórico já carregado no Initial Setup
                 resetToInitialState(true); 
+                 // MUDANÇA: Tenta renderizar gráficos mesmo com erro
+                 if (!dashboard.classList.contains('hidden')) {
+                     renderAromaRankings();
+                     renderAnnualComparison();
+                 } else {
+                      dashboard.classList.remove('hidden');
+                      connectionSection.classList.remove('hidden');
+                      renderAromaRankings();
+                      renderAnnualComparison();
+                      infoMessage.textContent = 'Erro ao verificar sessão ativa. Exibindo apenas dados históricos.';
+                 }
             }
         }
 
         // Load segment configurations (Otimizado)
         async function loadAllSellerSegments(sellerNames) {
+            console.log("Loading seller segments..."); // Log adicionado
             const uniqueSellers = [...new Set(sellerNames)];
+            // MUDANÇA: Não busca mais se não houver nomes
+            if (uniqueSellers.length === 0) {
+                 console.log("No seller names provided to load segments.");
+                 populateSegmentFilters();
+                 return;
+            }
             const sellersToFetch = uniqueSellers.filter(name => !sellerSegmentsCache.hasOwnProperty(name));
             if (sellersToFetch.length === 0) {
+                 console.log("All seller segments already cached."); // Log adicionado
                  populateSegmentFilters(); 
                  return; 
             }
+            console.log(`Fetching segments for ${sellersToFetch.length} sellers...`); // Log adicionado
 
             const sellerIdsToFetch = sellersToFetch.map(name => sanitizeForFirebaseId(name));
             const fetchedConfigs = {};
-            const chunkSize = 30; 
+            const chunkSize = 30; // Firestore 'in' query limit is 30
 
             try {
+                 let totalSegmentsRead = 0; // Contador
                 for (let i = 0; i < sellerIdsToFetch.length; i += chunkSize) {
                     const chunkIds = sellerIdsToFetch.slice(i, i + chunkSize);
                     if (chunkIds.length === 0) continue;
 
+                    console.log(`Fetching segment chunk ${Math.floor(i / chunkSize) + 1}...`); // Log adicionado
                     const q = query(collection(db, "vendedorConfig"), where(documentId(), 'in', chunkIds));
+                    console.time(`fetchSegmentChunk${i}`); // Start timer
                     const snapshot = await getDocs(q);
+                    console.timeEnd(`fetchSegmentChunk${i}`); // End timer
+                    totalSegmentsRead += snapshot.size; // Incrementa contador
                     
                     snapshot.forEach(doc => {
                         fetchedConfigs[doc.id] = doc.data().segmento;
                     });
+                     await new Promise(resolve => setTimeout(resolve, 50)); // PAUSA ADICIONADA AQUI TAMBÉM
                 }
+                 console.log(`Read ${totalSegmentsRead} documents for seller segments.`); // Log total lido
                 
                 uniqueSellers.forEach(name => {
                     const sellerId = sanitizeForFirebaseId(name);
-                    sellerSegmentsCache[name] = fetchedConfigs[sellerId] ?? sellerSegmentsCache[name] ?? null; 
+                    // Atualiza cache apenas se encontrou algo, senão mantém null ou o valor antigo
+                    if (fetchedConfigs[sellerId] !== undefined) {
+                         sellerSegmentsCache[name] = fetchedConfigs[sellerId];
+                    } else if (!sellerSegmentsCache.hasOwnProperty(name)) {
+                         sellerSegmentsCache[name] = null; // Marca como null se não encontrado e não estava no cache
+                    }
                 });
+                console.log("Seller segments loaded and cached."); // Log adicionado
 
             } catch (error) {
                 console.error("Erro ao carregar configurações de segmento:", error);
-                sellersToFetch.forEach(name => {
-                    if (!sellerSegmentsCache.hasOwnProperty(name)) { 
-                        sellerSegmentsCache[name] = null;
-                    }
-                });
             }
 
             populateSegmentFilters(); 
@@ -918,7 +884,9 @@
             
             const filteredData = sourceData.filter(sample => {
                  if (!sample.produto || !normalizeText(sample.produto).startsWith(AROMA_PREFIX)) return false;
-                 if (segment && sellerSegmentsCache[sample.sellerName] !== segment) return false;
+                 // MUDANÇA: Lida com cache null
+                 const sellerSegment = sellerSegmentsCache[sample.sellerName];
+                 if (segment && sellerSegment !== segment) return false;
                  if (startDate || endDate) {
                      const sampleDate = parseDate(sample.emissaoNF);
                      if (!sampleDate) return false; 
@@ -1101,25 +1069,48 @@
         
         /**
          * Renderiza o gráfico de comparativo anual e as informações adicionais
+         * MUDANÇA: Usa números fixos para 2023 e 2024
          */
         function renderAnnualComparison() {
             const dataByYear = {
-                '2023': { approved: 0, rejected: 0, totalValidFeedback: 0, noFeedback: 0, totalSent: 0 },
-                '2024': { approved: 0, rejected: 0, totalValidFeedback: 0, noFeedback: 0, totalSent: 0 },
-                '2025': { approved: 0, rejected: 0, totalValidFeedback: 0, noFeedback: 0, totalSent: 0 }
+                 // ** VALORES FIXOS 2023 **
+                '2023': { 
+                    approved: 2129, 
+                    rejected: 3726, 
+                    totalValidFeedback: 5855, // Soma Aprov+Reprov
+                    noFeedback: 3040, 
+                    totalSent: 5855 + 3040 // Soma Aprov+Reprov+Pendentes
+                },
+                 // ** VALORES FIXOS 2024 **
+                '2024': { 
+                    approved: 3011, 
+                    rejected: 6424, 
+                    totalValidFeedback: 9435, // Soma Aprov+Reprov
+                    noFeedback: 1166, 
+                    totalSent: 9435 + 1166 // Soma Aprov+Reprov+Pendentes
+                },
+                // ** VALORES BASE 2025 (serão incrementados) **
+                '2025': { 
+                    approved: 1061, 
+                    rejected: 1614, 
+                    noFeedback: 8542, 
+                    // totalValidFeedback e totalSent serão calculados abaixo
+                    totalValidFeedback: 1061 + 1614, 
+                    totalSent: 1061 + 1614 + 8542 
+                }
             };
 
-            // Função auxiliar para processar cada amostra
+            // Função auxiliar para processar cada amostra da SESSÃO ATIVA (apenas para 2025)
             function processSampleForAnnualChart(sample, dataByYear) {
                 const sampleDate = parseDate(sample.emissaoNF);
                 if (!sampleDate) return; 
 
                 const year = sampleDate.getFullYear().toString();
-                if (dataByYear.hasOwnProperty(year)) {
+                 // Só processa se for 2025
+                if (dataByYear.hasOwnProperty(year) && year === '2025') { 
                     
                     dataByYear[year].totalSent++; // Incrementa total enviado para o ano
 
-                    // ** MUDANÇA: Usa a nova função de categorização **
                     const category = getAnnualChartCategory(sample.feedback); 
                     
                     switch(category) {
@@ -1135,32 +1126,24 @@
                             dataByYear[year].noFeedback++;
                             // Não incrementa totalValidFeedback
                             break;
-                        case 'event':
-                            // Não incrementa nada, apenas foi enviado
-                            break;
-                        case 'ignored':
-                             // Não incrementa nada
+                        case 'event': // Eventos são contados como enviados mas não afetam índices
+                        case 'ignored': // Ignorados são contados como enviados mas não afetam índices
                              break;
                     }
                 }
             }
 
-            // 1. Processar dados históricos GERAIS
-            generalHistoricalData.forEach(sample => {
-                processSampleForAnnualChart(sample, dataByYear);
-            });
-
-            // 2. Processar dados da SESSÃO ATIVA
+            // Processar dados da SESSÃO ATIVA (APENAS para 2025)
             const liveSamples = allCurrentSamples.map(s => ({
                  feedback: s.feedback,
                  emissaoNF: s.emissaoNF 
             }));
 
             liveSamples.forEach(sample => {
-                processSampleForAnnualChart(sample, dataByYear);
+                 processSampleForAnnualChart(sample, dataByYear); // Só afetará 2025
             });
             
-            // Calcular Índices
+            // Calcular Índices (agora 2023 e 2024 são baseados nos valores fixos)
             const labels = ['2023', '2024', '2025'];
             const approvalRates = labels.map(year => {
                 const totalValid = dataByYear[year].totalValidFeedback; 
@@ -1235,7 +1218,7 @@
                 }
             });
 
-            // Atualizar informações de totais abaixo do gráfico
+            // Atualizar informações de totais abaixo do gráfico (agora usa valores fixos para 23/24)
             annualTotalsInfo.innerHTML = labels.map(year => `
                 <p class="text-center sm:text-left">
                     <strong>${year}:</strong> ${dataByYear[year].totalSent} enviadas | ${dataByYear[year].noFeedback} sem feedback
@@ -1366,7 +1349,14 @@
 
         // Populate segment filter dropdown
         function populateSegmentFilters() {
-             const currentSegments = [...new Set(Object.values(sellerSegmentsCache).filter(Boolean))].sort();
+             // MUDANÇA: Usar dados combinados (live + histórico DAR) para segmentos
+             const combinedAromaData = [
+                 ...allCurrentSamples.map(s => ({ sellerName: s.sellerName })),
+                 ...historicalAromaData.map(s => ({ sellerName: s.sellerName }))
+             ];
+             const uniqueSellerNames = [...new Set(combinedAromaData.map(s => s.sellerName))];
+             const currentSegments = [...new Set(uniqueSellerNames.map(name => sellerSegmentsCache[name]).filter(Boolean))].sort();
+
 
              // Populate Aroma Segment Filter
              const aromaSelect = document.getElementById('aroma-segment-filter');
@@ -1386,20 +1376,37 @@
              }
         }
 
-        // --- Initial Setup ---
+        // --- Initial Setup --- MUDANÇA na ordem
         (async () => {
              try {
                  await signInAnonymously(auth); // Sign in user anonymously
-                 listenForActiveSession(); // Check for a globally active session first
+                 console.log("Signed in anonymously."); // Log
+                 // MUDANÇA: Carrega histórico PRIMEIRO E SÓ UMA VEZ
+                 if (!historicalDataFetched) {
+                     await fetchDarAromaData();
+                     // REMOVIDO: Não carrega mais o GERAL aqui, pois 23/24 são fixos
+                     // await fetchGeneralHistoricalData();
+                 }
+                 // DEPOIS verifica a sessão ativa
+                 await listenForActiveSession(); // Changed to await
              } catch (error) {
                  infoMessage.textContent = "Não foi possível conectar ao serviço.";
-                 console.error("Firebase Auth Error:", error);
+                 console.error("Firebase Auth/Initial Load Error:", error);
+                  // MUDANÇA: Tenta carregar histórico mesmo com erro de auth
+                 if (!historicalDataFetched) {
+                     await fetchDarAromaData();
+                    // REMOVIDO
+                    // await fetchGeneralHistoricalData();
+                 }
                  resetToInitialState(true); // Show connection options on auth error
              }
         })();
     </script>
 </body>
 </html>
+
+
+
 
 
 
