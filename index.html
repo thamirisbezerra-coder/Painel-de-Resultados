@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Resultados</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; }
+        canvas { cursor: pointer; }
+        .toggle-arrow {
+            transition: transform 0.3s ease;
+        }
+        .toggle-arrow.rotate-180 {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <header class="bg-white shadow-sm sticky top-0 z-10">
+        <div class="container mx-auto px-4 md:px-8 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-4">
+                <div class="p-2 bg-blue-100 rounded-full">
+                    <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" xmlns="http://www.w3.org/2000/svg"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                </div>
+                <h1 class="text-xl font-bold text-gray-800">Painel de Resultados</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                 <p id="session-id-text" class="text-sm text-gray-500">Nenhuma sessão iniciada</p>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <!-- Connection Section -->
+         <div id="connection-section" class="text-center mb-8 flex flex-col sm:flex-row justify-center items-center gap-4">
+              <p class="text-gray-600">Conectando ao banco de dados...</p>
+              <div class="flex items-center gap-2">
+                   <input type="text" id="manual-session-id" placeholder="Ou conecte-se a uma sessão ID" class="border-gray-300 rounded-lg shadow-sm text-sm p-2">
+                   <button id="connect-session-btn" class="bg-blue-600 text-white font-semibold py-2 px-5 rounded-lg hover:bg-blue-700">Conectar</button>
+              </div>
+         </div>
+         <p id="info-message" class="text-center text-sm mb-4 h-5"></p>
+
+
+        <!-- Dashboard Section (Apenas Aroma Ranking) -->
+        <div id="dashboard" class="hidden">
+            
+            <!-- Seção de Comparativo Anual -->
+            <section id="annual-comparison-section" class="mb-8 bg-white p-6 rounded-2xl shadow-sm border">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-900">Comparativo Anual (Amostras Gerais)</h2>
+                    <button id="toggle-general-data-btn" class="bg-gray-200 text-gray-700 text-sm font-semibold py-1 px-3 rounded-lg hover:bg-gray-300">Adicionar Dados Gerais (Anual)</button>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Este gráfico é baseado nos dados anuais gerais. Os dados de 2025 são atualizados em tempo real com a sessão ativa.</p>
+                
+                <!-- Input Histórico (Geral) (Oculto) -->
+                <div id="general-data-input-section" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
+                     <h4 class="font-semibold mb-2">Adicionar Dados Gerais (para o gráfico anual)</h4>
+                     <p class="text-sm text-gray-600 mb-2">Cole os dados da(s) sua(s) planilha(s) anual(is) (2023, 2024, 2025) aqui. Pode colar um ano de cada vez ou todos juntos.</p>
+                     <textarea id="general-data-input" rows="5" class="w-full border-gray-300 rounded-lg" placeholder="Cole os dados (Pedido, Vendedor(a), Produto, Descrição, Feedback, Emissão NF, etc...)"></textarea>
+                     <button id="add-general-data-btn" class="mt-3 bg-purple-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-purple-700">Adicionar Dados ao Gráfico</button>
+                </div>
+
+                <!-- ALTURA AUMENTADA AQUI -->
+                <div class="relative h-96 w-full">
+                    <canvas id="annual-comparison-chart"></canvas>
+                </div>
+            </section>
+
+            <!-- Aroma Ranking Section -->
+            <section id="aroma-ranking-section" class="mb-10 bg-white p-6 rounded-2xl shadow-sm border">
+                <!-- Header -->
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                    <div class="flex items-center gap-4">
+                         <h2 class="text-2xl font-bold text-gray-900">Ranking de Aromas (DAR)</h2>
+                         <button id="toggle-aroma-section-btn" title="Expandir/Recolher">
+                              <svg class="w-6 h-6 text-gray-500 hover:text-gray-800 toggle-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                         </button>
+                    </div>
+                    
+                    <!-- Filtros -->
+                    <div class="flex flex-col md:flex-row items-center gap-3 mt-4 md:mt-0 w-full md:w-auto">
+                        <!-- Filtro de Data -->
+                        <div class="flex items-center gap-2">
+                             <label for="aroma-start-date" class="text-sm font-medium">De:</label>
+                             <input type="date" id="aroma-start-date" class="border-gray-300 rounded-lg shadow-sm text-sm p-1">
+                             <label for="aroma-end-date" class="text-sm font-medium">Até:</label>
+                             <input type="date" id="aroma-end-date" class="border-gray-300 rounded-lg shadow-sm text-sm p-1">
+                             <button id="aroma-clear-dates" class="text-xs text-gray-500 hover:text-red-500" title="Limpar datas">✖</button>
+                        </div>
+                        <!-- Filtro de Segmento -->
+                        <select id="aroma-segment-filter" class="border-gray-300 rounded-lg shadow-sm text-sm p-2 w-full md:w-48">
+                            <option value="">Todos os Segmentos</option>
+                            <!-- Segmentos preenchidos por JS -->
+                        </select>
+                         <button id="export-csv-btn" class="bg-blue-600 text-white text-sm font-semibold py-2 px-4 rounded-lg hover:bg-blue-700">Exportar CSV</button>
+                    </div>
+                </div>
+                
+                <!-- Conteúdo Expansível -->
+                <div id="aroma-ranking-content">
+                    <!-- Botões de Histórico e Live -->
+                    <div class="flex flex-wrap gap-4 justify-between items-center border-b pb-4 mb-6">
+                        <div class="flex gap-2">
+                             <button id="toggle-historical-data-btn" class="bg-gray-200 text-gray-700 text-sm font-semibold py-1 px-3 rounded-lg hover:bg-gray-300">Adicionar Histórico (DAR)</button>
+                        </div>
+                        <span id="aroma-data-source-label" class="text-sm font-medium text-blue-600">Exibindo: Dados Atuais + Histórico (Combinados)</span>
+                    </div>
+
+                    <!-- Input Histórico (Oculto) -->
+                    <div id="historical-data-input-section" class="hidden mb-6 p-4 bg-gray-50 rounded-lg border">
+                         <h4 class="font-semibold mb-2">Adicionar Dados Históricos ao Ranking (DAR)</h4>
+                         <p class="text-sm text-gray-600 mb-2">Cole os dados da planilha (incluindo cabeçalhos) aqui. Os dados serão salvos permanentemente.</p>
+                         <textarea id="historical-data-input" rows="5" class="w-full border-gray-300 rounded-lg" placeholder="Cole os dados (Pedido, Vendedor(a), Produto, Descrição, Feedback, Emissão NF, etc...)"></textarea>
+                         <button id="add-historical-data-btn" class="mt-3 bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Adicionar Histórico ao Ranking</button>
+                    </div>
+
+                    <!-- Grid de Rankings (Com Pedido / Sem Pedido) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        
+                        <!-- Coluna: Aprovados COM Pedido -->
+                        <div id="aromas-com-pedido" class="border-r-0 lg:border-r lg:pr-8 border-gray-200">
+                             <h3 class="text-xl font-bold text-gray-800 mb-4 text-center text-green-600">Aprovados COM Pedido</h3>
+                             
+                             <!-- Top Vendedores (Com Pedido) -->
+                             <div class="mb-6">
+                                  <h4 class="font-semibold mb-3 text-gray-700">Top Vendedores (Aromas c/ Pedido)</h4>
+                                  <div id="aroma-top-sellers-list-com-pedido" class="space-y-2">
+                                       <!-- Lista preenchida por JS -->
+                                       <p class="text-gray-500 text-sm">Calculando...</p>
+                                  </div>
+                                  <p id="aroma-sellers-remainder-com-pedido" class="text-sm text-gray-600 mt-2 cursor-pointer hover:underline"></p>
+                             </div>
+                             
+                             <!-- Destaque Aroma (Com Pedido) -->
+                             <div class="mb-6">
+                                  <h4 class="font-semibold mb-3 text-gray-700">Aroma Destaque (c/ Pedido)</h4>
+                                  <div id="aroma-destaque-com-pedido" class="bg-green-50 p-4 rounded-lg border border-green-200">
+                                       <p class="text-gray-500 text-sm">Calculando...</p>
+                                       <!-- Destaque preenchido por JS -->
+                                  </div>
+                             </div>
+                             
+                             <!-- Lista de Aromas (Com Pedido) -->
+                             <div>
+                                  <h4 class="font-semibold mb-3 text-gray-700">Lista de Aromas (c/ Pedido)</h4>
+                                  <div class="max-h-80 overflow-y-auto pr-2">
+                                       <table class="min-w-full text-sm">
+                                            <thead class="bg-gray-100 sticky top-0">
+                                                 <tr>
+                                                      <th class="px-3 py-2 text-left font-medium text-gray-600 uppercase">Aroma</th>
+                                                      <th class="px-3 py-2 text-left font-medium text-gray-600 uppercase">Descrição</th>
+                                                      <th class="px-3 py-2 text-center font-medium text-gray-600 uppercase">Aprov.</th>
+                                                      <th class="px-3 py-2 text-center font-medium text-gray-600 uppercase">Enviados</th>
+                                                 </tr>
+                                            </thead>
+                                            <tbody id="aroma-list-tbody-com-pedido">
+                                                 <tr><td colspan="4" class="p-4 text-center text-gray-500">Calculando...</td></tr>
+                                                 <!-- Lista preenchida por JS -->
+                                            </tbody>
+                                       </table>
+                                  </div>
+                             </div>
+                        </div>
+                        
+                        <!-- Coluna: Aprovados SEM Pedido -->
+                        <div id="aromas-sem-pedido">
+                             <h3 class="text-xl font-bold text-gray-800 mb-4 text-center text-blue-600">Aprovados SEM Pedido</h3>
+                             
+                             <!-- Top Vendedores (Sem Pedido) -->
+                             <div class="mb-6">
+                                  <h4 class="font-semibold mb-3 text-gray-700">Top Vendedores (Aromas s/ Pedido)</h4>
+                                  <div id="aroma-top-sellers-list-sem-pedido" class="space-y-2">
+                                       <!-- Lista preenchida por JS -->
+                                       <p class="text-gray-500 text-sm">Calculando...</p>
+                                  </div>
+                                  <p id="aroma-sellers-remainder-sem-pedido" class="text-sm text-gray-600 mt-2 cursor-pointer hover:underline"></p>
+                             </div>
+                             
+                             <!-- Destaque Aroma (Sem Pedido) -->
+                             <div class="mb-6">
+                                  <h4 class="font-semibold mb-3 text-gray-700">Aroma Destaque (s/ Pedido)</h4>
+                                  <div id="aroma-destaque-sem-pedido" class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                       <p class="text-gray-500 text-sm">Calculando...</p>
+                                       <!-- Destaque preenchido por JS -->
+                                  </div>
+                             </div>
+                             
+                             <!-- Lista de Aromas (Sem Pedido) -->
+                             <div>
+                                  <h4 class="font-semibold mb-3 text-gray-700">Lista de Aromas (s/ Pedido)</h4>
+                                  <div class="max-h-80 overflow-y-auto pr-2">
+                                       <table class="min-w-full text-sm">
+                                            <thead class="bg-gray-100 sticky top-0">
+                                                 <tr>
+                                                      <th class="px-3 py-2 text-left font-medium text-gray-600 uppercase">Aroma</th>
+                                                      <th class="px-3 py-2 text-left font-medium text-gray-600 uppercase">Descrição</th>
+                                                      <th class="px-3 py-2 text-center font-medium text-gray-600 uppercase">Aprov.</th>
+                                                      <th class="px-3 py-2 text-center font-medium text-gray-600 uppercase">Enviados</th>
+                                                 </tr>
+                                            </thead>
+                                            <tbody id="aroma-list-tbody-sem-pedido">
+                                                 <tr><td colspan="4" class="p-4 text-center text-gray-500">Calculando...</td></tr>
+                                                 <!-- Lista preenchida por JS -->
+                                            </tbody>
+                                       </table>
+                                  </div>
+                             </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Modals -->
+
+    <!-- Aroma Seller Full Ranking Modal -->
+    <div id="aroma-seller-ranking-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden z-40">
+         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6">
+              <div class="flex justify-between items-center mb-4">
+                   <h3 class="text-xl font-bold" id="aroma-seller-ranking-modal-title">Ranking Completo de Vendedores</h3>
+                   <button id="close-aroma-seller-ranking-modal" class="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+              </div>
+              <div id="aroma-seller-ranking-modal-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+                   <!-- Lista preenchida por JS -->
+              </div>
+              <div class="mt-6 flex justify-end">
+                   <button id="close-aroma-seller-ranking-modal-bottom" class="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg">Fechar</button>
+              </div>
+         </div>
+    </div>
+
+    <!-- Approved Aromas by Seller Modal -->
+    <div id="seller-approved-aromas-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center p-4 hidden z-40">
+         <div class="bg-white rounded-2xl shadow-xl w-full max-w-4xl p-6">
+              <div class="flex justify-between items-center mb-4">
+                   <h3 class="text-xl font-bold" id="seller-approved-aromas-modal-title">Aromas Aprovados</h3>
+                   <button id="close-seller-approved-aromas-modal" class="text-2xl font-bold text-gray-500 hover:text-gray-800">&times;</button>
+              </div>
+              <div id="seller-approved-aromas-modal-list" class="space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                   <!-- Lista preenchida por JS -->
+                   <p class="text-gray-500">Nenhum aroma aprovado encontrado para este vendedor.</p>
+              </div>
+              <div class="mt-6 flex justify-end">
+                   <button id="close-seller-approved-aromas-modal-bottom" class="bg-blue-600 text-white font-bold py-2 px-5 rounded-lg">Fechar</button>
+              </div>
+         </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, writeBatch, setDoc, getDoc, getDocs, updateDoc, query, orderBy, serverTimestamp, addDoc, limit, where, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+        // IMPORTANTE: Substitua pelo seu Firebase config
+        const firebaseConfig = {
+             apiKey: "AIzaSyAF_TE28Tbp2nakBGTva1yEEbBCqWvRdJQ", // Mantenha o seu
+             authDomain: "feedback-vendedores.firebaseapp.com", // Mantenha o seu
+             projectId: "feedback-vendedores", // Mantenha o seu
+             storageBucket: "feedback-vendedores.firebasestorage.app", // Mantenha o seu
+             messagingSenderId: "650880422749", // Mantenha o seu
+             appId: "1:650880422749:web:54a258964a6ca8db180eb4", // Mantenha o seu
+             measurementId: "G-TG588KDK0C" // Mantenha o seu
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        // --- Constantes de Aroma ---
+        const AROMA_PREFIX = 'DAR';
+        const FEEDBACK_COM_PEDIDO = 'COM PEDIDO';
+        const FEEDBACK_SEM_PEDIDO = 'APROVADO SEM PEDIDO';
+        const SEGMENTS = ['CÁRNEOS', 'EXPORTACAO', 'FOOD SERVICE', 'LACTEOS', 'NUTRACEUTICOS', 'NUTRICAO ANIMAL', 'PANIFICACAO', 'SMB', 'SORVETES', 'SUPPLY/FIS'];
+
+
+        // --- DOM Elements ---
+        const infoMessage = document.getElementById('info-message');
+        const sessionIdText = document.getElementById('session-id-text');
+        const dashboard = document.getElementById('dashboard');
+        const connectionSection = document.getElementById('connection-section');
+        const manualSessionInput = document.getElementById('manual-session-id');
+        const connectSessionBtn = document.getElementById('connect-session-btn');
+        
+        // --- DOM Elements (Aroma Ranking) ---
+        const aromaRankingSection = document.getElementById('aroma-ranking-section');
+        const toggleAromaSectionBtn = document.getElementById('toggle-aroma-section-btn');
+        const aromaRankingContent = document.getElementById('aroma-ranking-content');
+        const aromaSegmentFilter = document.getElementById('aroma-segment-filter');
+        const aromaStartDate = document.getElementById('aroma-start-date');
+        const aromaEndDate = document.getElementById('aroma-end-date');
+        const aromaClearDates = document.getElementById('aroma-clear-dates');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const toggleHistoricalDataBtn = document.getElementById('toggle-historical-data-btn');
+        const historicalDataInputSection = document.getElementById('historical-data-input-section');
+        const historicalDataInput = document.getElementById('historical-data-input');
+        const addHistoricalDataBtn = document.getElementById('add-historical-data-btn');
+        const aromaDataSourceLabel = document.getElementById('aroma-data-source-label');
+        
+        // --- DOM Elements (Aroma Modals) ---
+        const aromaSellerRankingModal = document.getElementById('aroma-seller-ranking-modal');
+        const aromaSellerRankingModalTitle = document.getElementById('aroma-seller-ranking-modal-title');
+        const aromaSellerRankingModalList = document.getElementById('aroma-seller-ranking-modal-list');
+        const closeAromaSellerRankingModal = document.getElementById('close-aroma-seller-ranking-modal');
+        const closeAromaSellerRankingModalBottom = document.getElementById('close-aroma-seller-ranking-modal-bottom');
+        const sellerApprovedAromasModal = document.getElementById('seller-approved-aromas-modal');
+        const sellerApprovedAromasModalTitle = document.getElementById('seller-approved-aromas-modal-title');
+        const sellerApprovedAromasModalList = document.getElementById('seller-approved-aromas-modal-list');
+        const closeSellerApprovedAromasModal = document.getElementById('close-seller-approved-aromas-modal');
+        const closeSellerApprovedAromasModalBottom = document.getElementById('close-seller-approved-aromas-modal-bottom');
+
+        // --- DOM Elements (Aroma Lists) ---
+        const aromaTopSellersListComPedido = document.getElementById('aroma-top-sellers-list-com-pedido');
+        const aromaSellersRemainderComPedido = document.getElementById('aroma-sellers-remainder-com-pedido');
+        const aromaDestaqueComPedido = document.getElementById('aroma-destaque-com-pedido');
+        const aromaListTbodyComPedido = document.getElementById('aroma-list-tbody-com-pedido');
+        const aromaTopSellersListSemPedido = document.getElementById('aroma-top-sellers-list-sem-pedido');
+        const aromaSellersRemainderSemPedido = document.getElementById('aroma-sellers-remainder-sem-pedido');
+        const aromaDestaqueSemPedido = document.getElementById('aroma-destaque-sem-pedido');
+        const aromaListTbodySemPedido = document.getElementById('aroma-list-tbody-sem-pedido');
+        const annualComparisonChartCanvas = document.getElementById('annual-comparison-chart');
+        const toggleGeneralDataBtn = document.getElementById('toggle-general-data-btn');
+        const generalDataInputSection = document.getElementById('general-data-input-section');
+        const generalDataInput = document.getElementById('general-data-input');
+        const addGeneralDataBtn = document.getElementById('add-general-data-btn');
+
+
+        // --- State Variables ---
+        let dataListenerUnsubscribe = null;
+        let currentSessionId = null;
+        let allCurrentSamples = []; // Dados da sessão ativa (em tempo real)
+        let sellerSegmentsCache = {}; // Cache for seller segments { sellerName: segment }
+        let historicalAromaData = []; // Cache para dados históricos (DAR)
+        let generalHistoricalData = []; // Cache para dados históricos (Geral)
+        let fullAromaSellerRanking = {}; 
+        let lastFilteredAromaData = []; // Cache for last filtered data
+        let annualChartInstance = null; // Instância do gráfico anual
+
+        // --- Utility Functions ---
+        const normalizeText = (text = '') => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        const sanitizeForFirebaseId = (text) => normalizeText(text).replace(/\//g, "-"); // Replace slashes
+
+        // Standardize feedback text
+        function getCanonicalFeedback(feedback) {
+             if (!feedback) return '';
+            const normalized = normalizeText(feedback.replace(/^(A - |R - |E - |P - )/, '').trim());
+            const mapping = {
+                'APROVADO COM PEDIDO': FEEDBACK_COM_PEDIDO,
+                'APROVADA SEM PEDIDO': FEEDBACK_SEM_PEDIDO,
+                'APROVADO S/ PEDIDO': FEEDBACK_SEM_PEDIDO,
+                'INNOVATION / EVENTOS': 'EVENTO',
+                'AMOSTRA NAO TESTADA': 'AMOSTRA NÃO TESTADA',
+                'EM ANALISE': 'EM ANÁLISE'
+            };
+            return mapping[normalized] || normalized;
+        }
+
+        function parseDate(dateString) {
+            if (!dateString || typeof dateString !== 'string') return null;
+            
+            let date = null;
+            try {
+                if (dateString.includes('-')) {
+                    const parts = dateString.split('-');
+                    if (parts.length === 3) {
+                        date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    }
+                }
+                else if (dateString.includes('/')) {
+                    const parts = dateString.split('/');
+                    if (parts.length === 3) {
+                        date = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+                    }
+                }
+                
+                if (date && !isNaN(date.getTime())) {
+                    date.setHours(0, 0, 0, 0); 
+                    return date;
+                }
+            } catch (e) {
+                // Ignore parsing errors
+            }
+            return null; // Return null if parsing failed or date is invalid
+        }
+
+
+        // --- Main Dashboard Rendering Function ---
+        function processAndDisplayDashboard(samples, sessionId) {
+            dashboard.classList.remove('hidden');
+            connectionSection.classList.add('hidden');
+            sessionIdText.innerHTML = `ID da Sessão: <strong>${sessionId}</strong>`;
+            
+            // Render Aroma Rankings (combined data)
+            renderAromaRankings(); 
+            // Render o gráfico de comparativo (agora usa dados globais + live)
+            renderAnnualComparison(); 
+
+            populateSegmentFilters(); // Update segment dropdowns
+        }
+
+        // --- Event Listeners ---
+        connectSessionBtn.addEventListener('click', async () => {
+            const manualId = manualSessionInput.value.trim();
+            if (manualId && manualId.startsWith('sessao_')) {
+                 infoMessage.textContent = `A tentar conectar à sessão: ${manualId}...`;
+                 connectionSection.classList.add('hidden');
+
+                 try {
+                     const sessionCheckRef = collection(db, "sessoes", manualId, "vendedores");
+                     const sessionCheckSnap = await getDocs(query(sessionCheckRef, limit(1)));
+
+                     if(sessionCheckSnap.empty) {
+                         infoMessage.textContent = `Sessão ${manualId} não encontrada ou vazia.`;
+                           resetToInitialState(true); // Show connection options again
+                           manualSessionInput.value = manualId; // Keep input value
+                           return; // Stop connection attempt
+                     }
+
+                     const activeSessionRef = doc(db, "configuracoes", "sessaoAtiva");
+                     await setDoc(activeSessionRef, { current: manualId });
+                     console.log(`Sessão ${manualId} definida como ativa globalmente.`);
+
+                     listenForDataUpdates(manualId);
+
+                 } catch (error) {
+                      console.error(`Erro ao verificar ou definir sessão ativa ${manualId}:`, error);
+                      infoMessage.textContent = `Erro ao conectar à sessão ${manualId}. Verifique o ID.`;
+                      resetToInitialState(true);
+                      manualSessionInput.value = manualId;
+                 }
+
+            } else {
+                infoMessage.textContent = 'ID de sessão inválido. Deve começar com "sessao_".';
+                setTimeout(() => {
+                   if (!currentSessionId) infoMessage.textContent = 'Nenhuma sessão ativa. Conecte-se manually.';
+                }, 3000);
+            }
+        });
+        
+        // --- Aroma Ranking Event Listeners ---
+        toggleAromaSectionBtn.addEventListener('click', () => {
+            aromaRankingContent.classList.toggle('hidden');
+            toggleAromaSectionBtn.querySelector('svg').classList.toggle('rotate-180');
+        });
+        aromaSegmentFilter.addEventListener('change', renderAromaRankings);
+        aromaStartDate.addEventListener('change', renderAromaRankings);
+        aromaEndDate.addEventListener('change', renderAromaRankings);
+        aromaClearDates.addEventListener('click', () => {
+             aromaStartDate.value = '';
+             aromaEndDate.value = '';
+             renderAromaRankings(); // Re-render with cleared dates
+        });
+         
+        exportCsvBtn.addEventListener('click', exportAromasToCSV);
+        
+        // Listeners para Histórico (DAR)
+        toggleHistoricalDataBtn.addEventListener('click', () => {
+             historicalDataInputSection.classList.toggle('hidden');
+        });
+        
+        addHistoricalDataBtn.addEventListener('click', () => {
+             const data = historicalDataInput.value.trim();
+             if (data) {
+                 parseAndSaveDarAromaData(data); // Renomeado
+             } else {
+                 infoMessage.textContent = "Por favor, cole os dados históricos.";
+                 setTimeout(() => infoMessage.textContent = '', 3000);
+             }
+        });
+
+        // Listeners para Histórico (Geral)
+        toggleGeneralDataBtn.addEventListener('click', () => {
+             generalDataInputSection.classList.toggle('hidden');
+        });
+
+        addGeneralDataBtn.addEventListener('click', () => {
+             const data = generalDataInput.value.trim();
+             if (data) {
+                 parseAndSaveGeneralAnnualData(data); // Nova função
+             } else {
+                 infoMessage.textContent = "Por favor, cole os dados anuais gerais.";
+                 setTimeout(() => infoMessage.textContent = '', 3000);
+             }
+        });
+        
+        // --- Aroma Modal Listeners ---
+        closeAromaSellerRankingModal.addEventListener('click', () => aromaSellerRankingModal.classList.add('hidden'));
+        closeAromaSellerRankingModalBottom.addEventListener('click', () => aromaSellerRankingModal.classList.add('hidden'));
+        closeSellerApprovedAromasModal.addEventListener('click', () => sellerApprovedAromasModal.classList.add('hidden'));
+        closeSellerApprovedAromasModalBottom.addEventListener('click', () => sellerApprovedAromasModal.classList.add('hidden'));
+
+
+        // --- Core Functions ---
+
+        /**
+         * Salva dados históricos (Ranking DAR)
+         */
+        async function parseAndSaveDarAromaData(data) {
+            infoMessage.textContent = "A processar dados históricos (DAR)...";
+            addHistoricalDataBtn.disabled = true;
+
+            Papa.parse(data, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.trim(),
+                complete: async (results) => {
+                    if (results.errors.length > 0) {
+                        infoMessage.textContent = `Erro de formatação: ${results.errors[0].message}`;
+                        addHistoricalDataBtn.disabled = false;
+                        return;
+                    }
+
+                    const mappedData = results.data.map((row, index) => {
+                        const sellerName = row['Vendedor(a)'];
+                        const produto = row['Produto'];
+                        const feedback = row['Feedback'] || row['Feedback Final'] || ''; 
+                        const emissaoNF = row['Emissão NF'] || '';
+
+                        if (!sellerName || !produto || !feedback) return null; // Basic validation
+
+                        return {
+                            id: `hist_dar_${Date.now()}_${index}`, // Unique ID
+                            sellerName: String(sellerName),
+                            produto: String(produto),
+                            descricao: String(row['Descrição'] || ''),
+                            feedback: String(feedback),
+                            emissaoNF: String(emissaoNF),
+                            pedido: String(row['Pedido'] || ''),
+                            razaoSocial: String(row['Razão Social'] || ''),
+                            notaFiscal: String(row['Nota Fiscal'] || '')
+                        };
+                    }).filter(Boolean);
+
+                    if (mappedData.length === 0) {
+                        infoMessage.textContent = "Nenhum dado histórico (DAR) válido encontrado.";
+                        addHistoricalDataBtn.disabled = false;
+                        return;
+                    }
+                    
+                    const batch = writeBatch(db);
+                    const collectionRef = collection(db, "dadosHistoricosAromas");
+                    
+                    mappedData.forEach(item => {
+                        const docRef = doc(collectionRef, item.id); // Use unique ID for doc
+                        batch.set(docRef, item);
+                    });
+                    
+                    try {
+                        await batch.commit();
+                        
+                        infoMessage.textContent = `${mappedData.length} registros históricos (DAR) salvos com sucesso!`;
+                        historicalDataInput.value = ''; // Clear input
+                        historicalDataInputSection.classList.add('hidden'); // Esconder seção
+                        toggleHistoricalDataBtn.classList.add('hidden'); // Esconder botão
+                        
+                        await fetchDarAromaData(); // Busca os dados novamente após adicionar
+                        
+                    } catch (error) {
+                         console.error("Erro ao salvar dados históricos no Firestore:", error);
+                         infoMessage.textContent = "Erro ao salvar dados históricos (DAR).";
+                    } finally {
+                         addHistoricalDataBtn.disabled = false;
+                    }
+                }
+            });
+        }
+
+        /**
+         * Salva dados históricos (Geral Anual)
+         */
+        async function parseAndSaveGeneralAnnualData(data) {
+            infoMessage.textContent = "A processar dados gerais anuais...";
+            addGeneralDataBtn.disabled = true;
+
+            Papa.parse(data, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.trim(),
+                complete: async (results) => {
+                    if (results.errors.length > 0) {
+                        infoMessage.textContent = `Erro de formatação: ${results.errors[0].message}`;
+                        addGeneralDataBtn.disabled = false;
+                        return;
+                    }
+
+                    const mappedData = results.data.map((row, index) => {
+                        const feedback = row['Feedback'] || row['Feedback Final'] || ''; 
+                        const emissaoNF = row['Emissão NF'] || '';
+
+                        if (!feedback || !emissaoNF) return null; 
+
+                        return {
+                            id: `geral_${Date.now()}_${index}`, // Unique ID
+                            feedback: String(feedback),
+                            emissaoNF: String(emissaoNF)
+                        };
+                    }).filter(Boolean);
+
+                    if (mappedData.length === 0) {
+                        infoMessage.textContent = "Nenhum dado geral válido (com Feedback e Emissão NF) encontrado.";
+                        addGeneralDataBtn.disabled = false;
+                        return;
+                    }
+                    
+                    const batch = writeBatch(db);
+                    const collectionRef = collection(db, "dadosHistoricosGeral");
+                    
+                    mappedData.forEach(item => {
+                        const docRef = doc(collectionRef, item.id); // Use unique ID for doc
+                        batch.set(docRef, item);
+                    });
+                    
+                    try {
+                        await batch.commit();
+                        
+                        infoMessage.textContent = `${mappedData.length} registros gerais salvos com sucesso!`;
+                        generalDataInput.value = ''; // Clear input
+                        generalDataInputSection.classList.add('hidden'); // Esconder seção
+                        toggleGeneralDataBtn.classList.add('hidden'); // Esconder botão principal
+                        
+                        await fetchGeneralHistoricalData(); // Buscar novamente os dados gerais
+                        
+                    } catch (error) {
+                         console.error("Erro ao salvar dados gerais no Firestore:", error);
+                         infoMessage.textContent = "Erro ao salvar dados gerais.";
+                    } finally {
+                         addGeneralDataBtn.disabled = false;
+                    }
+                }
+            });
+        }
+
+        // Listen for real-time updates to seller data within a session
+        function listenForDataUpdates(sessionId) {
+            currentSessionId = sessionId;
+            const q = collection(db, "sessoes", sessionId, "vendedores");
+            if (dataListenerUnsubscribe) dataListenerUnsubscribe(); // Unsubscribe from previous listener
+
+            let isInitialDataLoad = true;
+
+            dataListenerUnsubscribe = onSnapshot(q, async (snapshot) => {
+                 // Handle case where session ID is invalid or empty on initial load
+                if (snapshot.empty && isInitialDataLoad) {
+                     console.warn(`Sessão ${sessionId} não encontrada ou vazia.`);
+                     infoMessage.textContent = `Sessão ${sessionId} não encontrada ou vazia. Verifique o ID.`;
+                     resetToInitialState(true); // Show connection options
+                     manualSessionInput.value = sessionId;
+                     if(dataListenerUnsubscribe) dataListenerUnsubscribe(); // Stop listening
+                     currentSessionId = null;
+                     return;
+                }
+
+                // Flatten all samples from all seller documents
+                const allSamples = snapshot.docs.flatMap(doc => doc.data().amostras || []);
+                allCurrentSamples = allSamples; // Atualiza o cache de dados em tempo real
+
+                // Show dashboard once data is loaded (or if session becomes non-empty)
+                if (!snapshot.empty || !isInitialDataLoad) {
+                    connectionSection.classList.add('hidden');
+                    dashboard.classList.remove('hidden');
+
+                    // Load seller segments if needed
+                    const sellerNames = [...new Set(allSamples.map(s => s.sellerName))];
+                    if (sellerNames.length > 0) {
+                        await loadAllSellerSegments(sellerNames);
+                    }
+
+                    // Busca o histórico UMA VEZ na carga inicial
+                    if (isInitialDataLoad) {
+                        await fetchDarAromaData(); 
+                        await fetchGeneralHistoricalData(); 
+                    }
+
+                    // Update the UI with the latest data
+                    // Isso vai re-renderizar AMBOS os gráficos
+                    processAndDisplayDashboard(allSamples, sessionId); 
+                    infoMessage.textContent = ''; // Clear loading messages
+
+                } // End dashboard display logic
+
+                isInitialDataLoad = false; // Mark initial load complete
+            }, (error) => {
+                 console.error("Erro ao escutar dados da sessão:", error);
+                 infoMessage.textContent = `Erro ao carregar dados da sessão ${sessionId}. Verifique o ID ou a ligação.`;
+                 resetToInitialState(true);
+                 manualSessionInput.value = sessionId;
+                 if(dataListenerUnsubscribe) dataListenerUnsubscribe();
+                 currentSessionId = null;
+            });
+        }
+        
+        /**
+         * Busca os dados históricos (Ranking DAR)
+         */
+        async function fetchDarAromaData() {
+            try {
+                const q = collection(db, "dadosHistoricosAromas");
+                const snapshot = await getDocs(q); 
+                
+                historicalAromaData = snapshot.docs.map(doc => doc.data());
+                console.log(`Carregados ${historicalAromaData.length} registros históricos (DAR).`);
+                
+                // Re-render aroma rankings if dashboard is visible
+                if (!dashboard.classList.contains('hidden')) {
+                    renderAromaRankings();
+                }
+            } catch (error) {
+                 console.error("Erro ao carregar dados históricos (DAR):", error);
+                 historicalAromaData = []; // Clear data on error
+                 if (!dashboard.classList.contains('hidden')) {
+                     renderAromaRankings(); // Re-render (will show empty)
+                 }
+            }
+        }
+
+        /**
+         * Busca os dados históricos (Geral Anual)
+         */
+        async function fetchGeneralHistoricalData() {
+            try {
+                const q = collection(db, "dadosHistoricosGeral");
+                const snapshot = await getDocs(q); 
+                
+                generalHistoricalData = snapshot.docs.map(doc => doc.data());
+                console.log(`Carregados ${generalHistoricalData.length} registros históricos (Geral).`);
+                
+                // Re-render o gráfico anual
+                if (!dashboard.classList.contains('hidden')) {
+                    renderAnnualComparison();
+                }
+            } catch (error) {
+                 console.error("Erro ao carregar dados históricos (Geral):", error);
+                 generalHistoricalData = []; 
+                 if (!dashboard.classList.contains('hidden')) {
+                     renderAnnualComparison(); // Re-render (will show empty)
+                 }
+            }
+        }
+
+
+        // Reset UI state, clear listeners and data
+        function resetToInitialState(keepConnectionOptions = false) {
+            if (dataListenerUnsubscribe) dataListenerUnsubscribe();
+
+            currentSessionId = null;
+            allCurrentSamples = [];
+            sellerSegmentsCache = {};
+            historicalAromaData = []; 
+            generalHistoricalData = []; 
+
+            dashboard.classList.add('hidden');
+            sessionIdText.textContent = 'Nenhuma sessão iniciada';
+            
+            aromaRankingContent.classList.remove('hidden'); 
+            toggleAromaSectionBtn.querySelector('svg').classList.remove('rotate-180');
+            historicalDataInputSection.classList.add('hidden');
+            historicalDataInput.value = '';
+            generalDataInputSection.classList.add('hidden');
+            generalDataInput.value = '';
+
+            if (keepConnectionOptions) {
+                connectionSection.classList.remove('hidden');
+                if (!infoMessage.textContent.includes("não encontrada") && !infoMessage.textContent.includes("Erro")) {
+                     infoMessage.textContent = 'Nenhuma sessão ativa globalmente. Conecte-se manualmente.';
+                }
+            } else {
+                connectionSection.classList.remove('hidden');
+                infoMessage.textContent = 'Conectado. Nenhuma sessão ativa globalmente. Conecte-se manualmente.';
+                manualSessionInput.value = ''; // Clear manual input
+            }
+        }
+
+        // Listen for changes to the globally active session ID
+        function listenForActiveSession() {
+            const activeSessionRef = doc(db, "configuracoes", "sessaoAtiva");
+            let unsubscribe = null;
+
+            unsubscribe = onSnapshot(activeSessionRef, async (docSnap) => {
+                const activeSessionId = docSnap.exists() ? docSnap.data().current : null;
+
+                if (activeSessionId) {
+                    if (activeSessionId !== currentSessionId || dashboard.classList.contains('hidden')) {
+                        console.log(`Global active session is ${activeSessionId}. Connecting...`);
+                        infoMessage.textContent = `Sessão ativa global encontrada: ${activeSessionId}. A carregar...`;
+                        connectionSection.classList.add('hidden');
+                        listenForDataUpdates(activeSessionId);
+                    } else {
+                        console.log(`Already connected to global session ${activeSessionId}`);
+                    }
+                } else {
+                    if (currentSessionId) {
+                        console.log("Sessão ativa global foi limpa. A redefinir.");
+                        resetToInitialState(true); // Reset and show connection options
+                    } else if (connectionSection.classList.contains('hidden')) {
+                        console.log("Nenhuma sessão global ou local ativa. A mostrar opções de ligação.");
+                        resetToInitialState(true);
+                    } else {
+                         console.log("Connection section visible, awaiting user action.");
+                         infoMessage.textContent = 'Conectado. Nenhuma sessão ativa globalmente. Conecte-se manualmente.';
+                    }
+                }
+            }, (error) => {
+                infoMessage.textContent = "Erro ao verificar sessão ativa global.";
+                console.error("Active session listener error:", error);
+                 resetToInitialState(true); // Show connection options on error
+            });
+        }
+
+        // Load segment configurations for sellers from Firestore
+        async function loadAllSellerSegments(sellerNames) {
+            const uniqueSellers = [...new Set(sellerNames)];
+            const sellersToFetch = uniqueSellers.filter(name => !sellerSegmentsCache.hasOwnProperty(name));
+            if (sellersToFetch.length === 0) {
+                 populateSegmentFilters(); // Populate filters even if no fetch needed
+                 return; // Already have all segments
+            }
+
+            const fetchedConfigs = {};
+            try {
+                const q = collection(db, "vendedorConfig");
+                const snapshot = await getDocs(q);
+                snapshot.forEach(doc => {
+                    fetchedConfigs[doc.id] = doc.data().segmento;
+                });
+            } catch (error) {
+                console.error("Erro ao carregar configurações de segmento:", error);
+            }
+
+            uniqueSellers.forEach(name => {
+                const sellerId = sanitizeForFirebaseId(name);
+                sellerSegmentsCache[name] = fetchedConfigs[sellerId] || null; // Use fetched or null
+            });
+
+            populateSegmentFilters(); // Populate/update filter dropdowns
+        }
+        
+        // --- Aroma Ranking Functions ---
+        
+        /**
+         * Main function to render the entire aroma ranking section
+         */
+        function renderAromaRankings() {
+            // 1. Get the correct data source (live + historical)
+            let sourceData = [];
+            
+            // Map live data (allCurrentSamples) to the historical format for consistent processing
+            const liveData = allCurrentSamples.map(s => ({
+                 sellerName: s.sellerName,
+                 produto: s.produto,
+                 descricao: s.descricao,
+                 feedback: s.feedback,
+                 emissaoNF: s.emissaoNF,
+                 pedido: s.pedido,
+                 razaoSocial: s.razaoSocial,
+                 notaFiscal: s.notaFiscal
+            }));
+            
+            // Combine live data with stored historical data
+            sourceData = [...liveData, ...historicalAromaData];
+            
+            // 2. Get filters
+            const segment = aromaSegmentFilter.value;
+            const startDate = parseDate(aromaStartDate.value);
+            const endDate = parseDate(aromaEndDate.value);
+            
+            // 3. Filter data
+            const filteredData = sourceData.filter(sample => {
+                 // Filter by Aroma Prefix
+                 if (!sample.produto || !normalizeText(sample.produto).startsWith(AROMA_PREFIX)) {
+                     return false;
+                 }
+                 
+                 // Filter by Segment
+                 if (segment && sellerSegmentsCache[sample.sellerName] !== segment) {
+                     return false;
+                 }
+                 
+                 // Filter by Date
+                 if (startDate || endDate) {
+                     const sampleDate = parseDate(sample.emissaoNF);
+                     if (!sampleDate) return false; // Exclude if date is invalid/missing
+                     if (startDate && sampleDate < startDate) return false;
+                     if (endDate && sampleDate > endDate) return false;
+                 }
+                 
+                 return true;
+            });
+            
+            lastFilteredAromaData = filteredData;
+            
+            // 4. Calculate Rankings
+            const rankings = calculateAromaRankings(filteredData);
+            
+            // 5. Render Components
+            renderAromaTopSellers(rankings.vendedoresComPedido, aromaTopSellersListComPedido, aromaSellersRemainderComPedido, 'com-pedido');
+            renderAromaTopSellers(rankings.vendedoresSemPedido, aromaTopSellersListSemPedido, aromaSellersRemainderSemPedido, 'sem-pedido');
+            
+            renderAromaDestaque(rankings.destaqueComPedido, aromaDestaqueComPedido);
+            renderAromaDestaque(rankings.destaqueSemPedido, aromaDestaqueSemPedido);
+            
+            renderAromaList(rankings.listaAromasComPedido, aromaListTbodyComPedido);
+            renderAromaList(rankings.listaAromasSemPedido, aromaListTbodySemPedido);
+        }
+
+        /**
+         * Calculates all aroma statistics from the filtered data
+         */
+        function calculateAromaRankings(filteredData) {
+            const aromaStats = {}; // { "DAR...": { produto, descricao, enviados: 0, comPedido: 0, semPedido: 0 } }
+            const sellerStats = {}; // { "Vendedor": { comPedido: 0, semPedido: 0 } }
+
+            filteredData.forEach(sample => {
+                const canonicalFeedback = getCanonicalFeedback(sample.feedback);
+                const produtoKey = normalizeText(sample.produto);
+                const sellerName = sample.sellerName;
+                
+                if (!aromaStats[produtoKey]) {
+                     aromaStats[produtoKey] = {
+                         produto: sample.produto,
+                         descricao: sample.descricao || '---',
+                         enviados: 0,
+                         comPedido: 0,
+                         semPedido: 0
+                     };
+                }
+                if (!sellerStats[sellerName]) {
+                     sellerStats[sellerName] = { comPedido: 0, semPedido: 0 };
+                }
+
+                aromaStats[produtoKey].enviados++;
+                
+                if (canonicalFeedback === FEEDBACK_COM_PEDIDO) {
+                    aromaStats[produtoKey].comPedido++;
+                    sellerStats[sellerName].comPedido++;
+                } else if (canonicalFeedback === FEEDBACK_SEM_PEDIDO) {
+                    aromaStats[produtoKey].semPedido++;
+                    sellerStats[sellerName].semPedido++;
+                }
+            });
+            
+            // --- Process Vendedores ---
+            const sortedVendedoresComPedido = Object.entries(sellerStats)
+                .map(([name, counts]) => ({ name, count: counts.comPedido }))
+                .filter(s => s.count > 0)
+                .sort((a, b) => b.count - a.count);
+                
+            const sortedVendedoresSemPedido = Object.entries(sellerStats)
+                .map(([name, counts]) => ({ name, count: counts.semPedido }))
+                .filter(s => s.count > 0)
+                .sort((a, b) => b.count - a.count);
+
+            // --- Process Lista de Aromas ---
+            const listaAromasComPedido = Object.values(aromaStats)
+                 .filter(a => a.comPedido > 0)
+                 .sort((a, b) => b.comPedido - a.comPedido);
+                 
+            const listaAromasSemPedido = Object.values(aromaStats)
+                 .filter(a => a.semPedido > 0)
+                 .sort((a, b) => b.semPedido - a.semPedido);
+
+            return {
+                vendedoresComPedido: sortedVendedoresComPedido,
+                vendedoresSemPedido: sortedVendedoresSemPedido,
+                destaqueComPedido: listaAromasComPedido[0] || null,
+                destaqueSemPedido: listaAromasSemPedido[0] || null,
+                listaAromasComPedido: listaAromasComPedido,
+                listaAromasSemPedido: listaAromasSemPedido
+            };
+        }
+        
+        /**
+         * Renders the Top 3 Sellers list
+         */
+        function renderAromaTopSellers(sellerList, listElement, remainderElement, type) {
+            listElement.innerHTML = ''; // Clear
+            remainderElement.innerHTML = ''; // Clear
+            
+            fullAromaSellerRanking[type] = sellerList; 
+            
+            if (sellerList.length === 0) {
+                listElement.innerHTML = `<p class="text-gray-500 text-sm">Nenhum vendedor encontrado.</p>`;
+                return;
+            }
+
+            const top3 = sellerList.slice(0, 3);
+            const remainderCount = sellerList.length - 3;
+            
+            top3.forEach((seller, index) => {
+                 let itemHtml;
+                 const sellerName = seller.name;
+                 const count = seller.count;
+                 
+                 const clickableTemplate = (content) => `
+                    <button class="w-full text-left seller-aroma-details-btn" data-seller-name="${sellerName}" data-type="${type}">
+                         ${content}
+                    </button>`;
+                 
+                 if (index === 0) {
+                      // 1st Place (Ouro)
+                      itemHtml = clickableTemplate(`
+                           <div class="flex items-center justify-between p-3 bg-gradient-to-r from-amber-100 to-yellow-100 rounded-lg border-2 border-yellow-400 shadow-md">
+                                <div class="flex items-center gap-3">
+                                     <span class="flex-shrink-0 w-8 h-8 rounded-full bg-yellow-400 flex items-center justify-center text-white font-bold">
+                                         <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                                     </span>
+                                     <div>
+                                          <span class="font-bold text-yellow-900">${sellerName}</span>
+                                     </div>
+                                </div>
+                                <span class="font-bold text-xl text-yellow-900">${count}</span>
+                           </div>
+                      `);
+                 } else if (index === 1) {
+                      // 2nd Place (Prata)
+                      itemHtml = clickableTemplate(`
+                           <div class="flex items-center justify-between p-3 bg-gray-100 rounded-lg border border-gray-300">
+                                <div class="flex items-center gap-3">
+                                     <span class="flex-shrink-0 w-8 h-8 rounded-full bg-gray-400 text-white flex items-center justify-center font-bold">2</span>
+                                     <span class="font-semibold text-gray-700">${sellerName}</span>
+                                </div>
+                                <span class="font-bold text-lg text-gray-800">${count}</span>
+                           </div>
+                      `);
+                 } else {
+                     // 3rd Place (Bronze)
+                      itemHtml = clickableTemplate(`
+                           <div class="flex items-center justify-between p-3 bg-orange-100 rounded-lg border border-orange-300">
+                                <div class="flex items-center gap-3">
+                                     <span class="flex-shrink-0 w-8 h-8 rounded-full bg-orange-400 text-white flex items-center justify-center font-bold">3</span>
+                                     <span class="font-semibold text-orange-900">${sellerName}</span>
+                                </div>
+                                <span class="font-bold text-lg text-orange-900">${count}</span>
+                           </div>
+                      `);
+                 }
+                 listElement.innerHTML += itemHtml;
+            });
+            
+            // Remainder text
+            if (remainderCount > 0) {
+                 remainderElement.textContent = `... e mais ${remainderCount} vendedor(es).`;
+                 remainderElement.dataset.type = type; // Store type for modal
+                 remainderElement.addEventListener('click', (e) => {
+                     e.stopPropagation();
+                     openAromaSellerRankingModal(e.currentTarget.dataset.type);
+                 });
+            }
+            
+            // Add click listeners
+            listElement.querySelectorAll('.seller-aroma-details-btn').forEach(btn => {
+                 btn.addEventListener('click', (e) => {
+                     const sellerName = e.currentTarget.dataset.sellerName;
+                     const type = e.currentTarget.dataset.type;
+                     openSellerApprovedAromasModal(sellerName, type, lastFilteredAromaData); // Usar dados filtrados
+                 });
+            });
+        }
+        
+        /**
+         * Renders the Destaque Aroma card
+         */
+        function renderAromaDestaque(destaque, element) {
+            if (!destaque) {
+                element.innerHTML = `<p class="text-gray-500 text-sm">Nenhum aroma destaque encontrado.</p>`;
+                return;
+            }
+            
+            const count = destaque.comPedido > 0 ? destaque.comPedido : destaque.semPedido;
+            
+            element.innerHTML = `
+                <p class="font-bold text-lg text-gray-800">${destaque.produto}</p>
+                <p class="text-sm text-gray-600 mb-2">${destaque.descricao}</p>
+                <div class="flex justify-between items-baseline">
+                    <span class="text-3xl font-bold text-gray-900">${count}</span>
+                    <span class="text-sm text-gray-600">Total Enviados: ${destaque.enviados}</span>
+                </div>
+            `;
+        }
+        
+        /**
+         * Renders the full list of approved aromas
+         */
+        function renderAromaList(aromaList, tbodyElement) {
+            tbodyElement.innerHTML = ''; // Clear
+            if (aromaList.length === 0) {
+                tbodyElement.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-gray-500">Nenhum aroma aprovado encontrado.</td></tr>`;
+                return;
+            }
+            
+            aromaList.forEach(aroma => {
+                 const count = aroma.comPedido > 0 ? aroma.comPedido : aroma.semPedido;
+                 const row = document.createElement('tr');
+                 row.className = 'border-b hover:bg-gray-50';
+                 row.innerHTML = `
+                      <td class="px-3 py-2 font-medium">${aroma.produto}</td>
+                      <td class="px-3 py-2 text-gray-600">${aroma.descricao}</td>
+                      <td class="px-3 py-2 text-center font-bold">${count}</td>
+                      <td class="px-3 py-2 text-center text-gray-600">${aroma.enviados}</td>
+                 `;
+                 tbodyElement.appendChild(row);
+            });
+        }
+        
+        /**
+         * Renderiza o gráfico de comparativo anual (usa dados GERAIS + SESSÃO ATIVA)
+         */
+        function renderAnnualComparison() {
+            const dataByYear = {
+                '2023': { approved: 0, rejected: 0, total: 0 },
+                '2024': { approved: 0, rejected: 0, total: 0 },
+                '2025': { approved: 0, rejected: 0, total: 0 }
+            };
+
+            // Feedbacks Aprovados (Coluna 1 da sua imagem)
+            const CANONICAL_APPROVED = [FEEDBACK_COM_PEDIDO, FEEDBACK_SEM_PEDIDO];
+            
+            // Feedbacks 'Outros' (não são Aprovados nem Reprovados)
+            const CANONICAL_OTHER = ['EVENTO', 'AMOSTRA NÃO TESTADA', 'EM ANÁLISE', 'AMOSTRA SEM FEEDBACK', ''];
+
+            // 1. Processar dados históricos GERAIS (que você colou)
+            generalHistoricalData.forEach(sample => {
+                processSampleForAnnualChart(sample, dataByYear);
+            });
+
+            // 2. MODIFICAÇÃO: Processar dados da SESSÃO ATIVA (em tempo real)
+            // Mapear dados da sessão ativa para o formato { feedback, emissaoNF }
+            const liveSamples = allCurrentSamples.map(s => ({
+                 feedback: s.feedback,
+                 emissaoNF: s.emissaoNF // Usar a data de emissão NF da amostra
+            }));
+
+            liveSamples.forEach(sample => {
+                processSampleForAnnualChart(sample, dataByYear);
+            });
+
+            // Função auxiliar para processar cada amostra
+            function processSampleForAnnualChart(sample, dataByYear) {
+                const sampleDate = parseDate(sample.emissaoNF);
+                if (!sampleDate) return; 
+
+                const year = sampleDate.getFullYear().toString();
+                if (dataByYear.hasOwnProperty(year)) {
+                    
+                    const canonicalFeedback = getCanonicalFeedback(sample.feedback);
+                    
+                    // Não contar pendentes/outros
+                    if (CANONICAL_OTHER.includes(canonicalFeedback)) {
+                        return; 
+                    }
+
+                    dataByYear[year].total++; // Total de amostras válidas
+
+                    if (CANONICAL_APPROVED.includes(canonicalFeedback)) {
+                        dataByYear[year].approved++;
+                    } else {
+                        // Se não for Aprovado e não for 'Outro', é Reprovado (Coluna 2)
+                        dataByYear[year].rejected++;
+                    }
+                }
+            }
+            
+            // O resto da função continua igual...
+            const labels = ['2023', '2024', '2025'];
+            const approvalRates = labels.map(year => {
+                const total = dataByYear[year].total;
+                return total > 0 ? (dataByYear[year].approved / total) * 100 : 0;
+            });
+            const rejectionRates = labels.map(year => {
+                const total = dataByYear[year].total;
+                return total > 0 ? (dataByYear[year].rejected / total) * 100 : 0;
+            });
+            
+            // Renderizar o Gráfico
+            const ctx = annualComparisonChartCanvas.getContext('2d');
+            if (annualChartInstance) {
+                annualChartInstance.destroy();
+            }
+            
+            Chart.register(ChartDataLabels);
+
+            annualChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Índice de Aprovação (%)',
+                            data: approvalRates,
+                            backgroundColor: '#10b981', // Verde
+                            borderColor: '#059669',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Índice de Reprovação (%)',
+                            data: rejectionRates,
+                            backgroundColor: '#ef4444', // Vermelho
+                            borderColor: '#dc2626',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Índice (%)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += context.parsed.y.toFixed(1) + '%';
+                                    }
+                                    // Adicionar contagem absoluta
+                                    const year = context.label;
+                                    const type = context.dataset.label.includes('Aprovação') ? 'approved' : 'rejected';
+                                    const count = dataByYear[year][type];
+                                    label += ` (${count} amostras)`;
+                                    return label;
+                                }
+                            }
+                        },
+                        datalabels: { // Mostrar o valor em % em cima da barra
+                             display: true,
+                             color: '#1f2937', // gray-800
+                             anchor: 'end',
+                             align: 'top',
+                             formatter: (value) => value > 0 ? value.toFixed(1) + '%' : '',
+                             font: {
+                                 weight: 'bold'
+                             }
+                        }
+                    }
+                }
+            });
+        }
+
+
+        /**
+         * Opens the modal showing the full seller ranking
+         */
+        function openAromaSellerRankingModal(type) {
+            const title = type === 'com-pedido' ? 'Ranking (Aprovados c/ Pedido)' : 'Ranking (Aprovados s/ Pedido)';
+            aromaSellerRankingModalTitle.textContent = title;
+            aromaSellerRankingModalList.innerHTML = ''; // Clear
+            
+            const sellerList = fullAromaSellerRanking[type] || [];
+            
+            if (sellerList.length === 0) {
+                 aromaSellerRankingModalList.innerHTML = '<p class="text-gray-500">Nenhum vendedor para classificar.</p>';
+            } else {
+                 sellerList.forEach((seller, index) => {
+                     const item = document.createElement('button'); // MUDANÇA: para botão
+                     item.className = 'flex justify-between items-center p-2 border-b w-full text-left hover:bg-gray-100 seller-aroma-details-btn';
+                     item.dataset.sellerName = seller.name; // Adicionar dados
+                     item.dataset.type = type; // Adicionar dados
+                     
+                     item.innerHTML = `
+                         <div class="flex items-center gap-3">
+                              <span class="text-sm font-semibold w-6 text-center">${index + 1}.</span>
+                              <span class="text-gray-700">${seller.name}</span>
+                         </div>
+                         <span class="font-bold text-gray-800">${seller.count}</span>
+                     `;
+                     aromaSellerRankingModalList.appendChild(item);
+                 });
+                 
+                 // Adicionar listeners aos novos botões no modal
+                 aromaSellerRankingModalList.querySelectorAll('.seller-aroma-details-btn').forEach(btn => {
+                     btn.addEventListener('click', (e) => {
+                         const sellerName = e.currentTarget.dataset.sellerName;
+                         const type = e.currentTarget.dataset.type;
+                         openSellerApprovedAromasModal(sellerName, type, lastFilteredAromaData); // Usar dados filtrados
+                     });
+                 });
+            }
+            
+            aromaSellerRankingModal.classList.remove('hidden');
+        }
+        
+        /**
+         * Opens the modal showing approved aromas for a specific seller
+         */
+        function openSellerApprovedAromasModal(sellerName, type, filteredData) {
+             const feedbackType = type === 'com-pedido' ? FEEDBACK_COM_PEDIDO : FEEDBACK_SEM_PEDIDO;
+             const title = `Aromas: ${sellerName} (${type.replace('-', ' ')})`;
+             
+             sellerApprovedAromasModalTitle.textContent = title;
+             sellerApprovedAromasModalList.innerHTML = ''; // Clear
+             
+             const approvedAromas = filteredData.filter(sample => {
+                 return sample.sellerName === sellerName &&
+                        getCanonicalFeedback(sample.feedback) === feedbackType;
+             });
+             
+             if (approvedAromas.length === 0) {
+                  sellerApprovedAromasModalList.innerHTML = `<p class="text-gray-500">Nenhum aroma aprovado (${type}) encontrado para este vendedor.</p>`;
+             } else {
+                  // Ordenar por produto
+                  approvedAromas.sort((a, b) => (a.produto || '').localeCompare(b.produto || ''));
+                  
+                  approvedAromas.forEach(sample => {
+                      const item = document.createElement('div');
+                      item.className = 'p-3 border rounded-lg bg-gray-50';
+                      item.innerHTML = `
+                           <p class="font-bold">${sample.produto}</p>
+                           <p class="text-sm text-gray-600 mb-1">${sample.descricao || '---'}</p>
+                           <p class="text-xs text-gray-500">
+                                <strong>Cliente:</strong> ${sample.razaoSocial || 'N/A'} |
+                                <strong>Pedido:</strong> ${sample.pedido || 'N/A'} |
+                                <strong>NF:</strong> ${sample.notaFiscal || 'N/A'} |
+                                <strong>Data:</strong> ${sample.emissaoNF || 'N/A'}
+                           </p>
+                      `;
+                      sellerApprovedAromasModalList.appendChild(item);
+                  });
+             }
+             
+             sellerApprovedAromasModal.classList.remove('hidden');
+        }
+
+        // Exportar dados filtrados para CSV
+        function exportAromasToCSV() {
+            if (lastFilteredAromaData.length === 0) {
+                infoMessage.textContent = "Nenhum dado para exportar.";
+                setTimeout(() => { infoMessage.textContent = ''; }, 3000);
+                return;
+            }
+
+            // Mapear dados para o formato CSV
+            const csvData = lastFilteredAromaData.map(sample => ({
+                "Vendedor(a)": sample.sellerName,
+                "Produto": sample.produto,
+                "Descrição": sample.descricao,
+                "Feedback": sample.feedback,
+                "Emissão NF": sample.emissaoNF,
+                "Pedido": sample.pedido,
+                "Razão Social": sample.razaoSocial,
+                "Nota Fiscal": sample.notaFiscal
+            }));
+
+            const csv = Papa.unparse(csvData); // Converter JSON para CSV
+            
+            // Criar e baixar o arquivo
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            const dateStr = new Date().toISOString().split('T')[0];
+            link.setAttribute("download", `ranking_aromas_${dateStr}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Populate segment filter dropdown
+        function populateSegmentFilters() {
+             const currentSegments = [...new Set(Object.values(sellerSegmentsCache).filter(Boolean))].sort();
+
+             // Populate Aroma Segment Filter
+             const aromaSelect = document.getElementById('aroma-segment-filter');
+             if(!aromaSelect) return;
+             const aromaCurrentValue = aromaSelect.value; // Preserve selection
+             aromaSelect.innerHTML = '<option value="">Todos os Segmentos</option>'; // Reset
+             currentSegments.forEach(segment => {
+                 const option = document.createElement('option');
+                 option.value = segment;
+                 option.textContent = segment;
+                 aromaSelect.appendChild(option);
+             });
+             if (aromaSelect.querySelector(`option[value="${aromaCurrentValue}"]`)) {
+                  aromaSelect.value = aromaCurrentValue;
+             } else {
+                  aromaSelect.value = "";
+             }
+        }
+
+        // --- Initial Setup ---
+        (async () => {
+             try {
+                 await signInAnonymously(auth); // Sign in user anonymously
+                 listenForActiveSession(); // Check for a globally active session first
+             } catch (error) {
+                 infoMessage.textContent = "Não foi possível conectar ao serviço.";
+                 console.error("Firebase Auth Error:", error);
+                 resetToInitialState(true); // Show connection options on auth error
+             }
+        })();
+    </script>
+</body>
+</html>
+
